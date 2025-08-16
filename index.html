@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SynclirycsVideo</title>
+    <link rel="stylesheet" href="style.css">
+    <meta http-equiv="Cross-Origin-Opener-Policy" content="same-origin">
+    <meta http-equiv="Cross-Origin-Embedder-Policy" content="require-corp">
+
+</head>
+<body>
+    <div class="container">
+        <h1>Преврати аудио в видео с текстом песни</h1>
+
+        <div class="main-columns">
+            <!-- Левая колонка - настройки -->
+            <div class="settings-panel">
+                <div class="tabs">
+                    <button class="tab-btn active" data-tab="media">Медиа</button>
+                    <button class="tab-btn" data-tab="text">Текст</button>
+                    <button class="tab-btn" data-tab="style">Стиль</button>
+                </div>
+
+                <div id="media" class="tab-content active">
+                    <h2>Аудио и фон</h2>
+
+                    <div class="form-group">
+                        <label>Аудиофайл</label>
+                        <div class="file-input">
+                            <input type="file" id="audio-file" accept="audio/*" class="hidden">
+                            <button id="audio-btn" class="btn btn-primary">
+                                <i class="fas fa-music"></i> Выбрать аудио
+                            </button>
+                            <span id="audio-name">Файл не выбран</span>
+                        </div>
+                        <div id="waveform"></div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Фоновое изображение</label>
+                        <div class="file-input">
+                            <input type="file" id="bg-image" accept="image/*" class="hidden">
+                            <button id="bg-btn" class="btn btn-primary">
+                                <i class="fas fa-image"></i> Выбрать фон
+                            </button>
+                            <span id="bg-name">Файл не выбран</span>
+                        </div>
+                    </div>
+
+
+                </div>
+
+                <div id="text" class="tab-content">
+                    <h2>Текст песни</h2>
+
+                    <div class="form-group">
+                        <label>Текст с таймкодами</label>
+                        <textarea id="lyrics-input" rows="10" placeholder="Пример:
+[00:00.50]Первая строка текста
+[00:02.30]Вторая строка текста
+[00:04.15]Третья строка текста"></textarea>
+                        <p class="hint">Формат: [минуты:секунды.миллисекунды]Текст</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Шрифт</label>
+                        <div class="file-input">
+                            <input type="file" id="font-file" accept=".ttf,.otf,.woff" class="hidden">
+                            <button id="font-btn" class="btn btn-primary">
+                                <i class="fas fa-font"></i> Выбрать шрифт
+                            </button>
+                            <span id="font-name">Системный шрифт</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="style" class="tab-content">
+                    <h2>Стиль текста</h2>
+
+                    <div class="form-group">
+                        <label>Цвет текста</label>
+                        <div class="color-picker">
+                            <input type="color" id="text-color" value="#ffffff">
+                            <div class="color-preview" id="color-preview"></div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Размер шрифта</label>
+                        <div class="slider-container">
+                            <input type="range" id="font-size" min="12" max="72" value="24" class="slider">
+                            <span id="font-size-value">24</span>px
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Выравнивание</label>
+                        <div class="align-buttons">
+                            <button class="align-btn" data-align="left">
+                                <i class="fas fa-align-left"></i>
+                            </button>
+                            <button class="align-btn active" data-align="center">
+                                <i class="fas fa-align-center"></i>
+                            </button>
+                            <button class="align-btn" data-align="right">
+                                <i class="fas fa-align-right"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="text-shadow">
+                            Включить тень текста
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Правая колонка - предпросмотр -->
+            <div class="preview-panel">
+                <h2>Предпросмотр</h2>
+
+                <div class="video-preview" id="video-preview">
+                    <div class="lyrics-container" id="lyrics-container"></div>
+                </div>
+
+                <div class="controls">
+                    <button id="play-btn" class="btn btn-primary">
+                        <i class="fas fa-play"></i> Воспроизвести
+                    </button>
+                    <button id="pause-btn" class="btn btn-warning">
+                        <i class="fas fa-pause"></i> Пауза
+                    </button>
+                    <button id="export-btn" class="btn btn-success">
+                        <i class="fas fa-download"></i> Экспорт видео
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Инструкция -->
+    <div class="instructions">
+        <h2>Инструкция</h2>
+        <ol>
+            <li>Загрузите аудиофайл и фоновое изображение</li>
+            <li>Введите текст песни с таймкодами</li>
+            <li>Настройте стиль текста (шрифт, цвет, размер)</li>
+            <li>Нажмите "Предпросмотр" для проверки</li>
+            <li>Экспортируйте готовое видео</li>
+        </ol>
+    </div>
+
+    <!-- Скрытый canvas для рендеринга -->
+    <canvas id="render-canvas" style="display: none;"></canvas>
+
+    <!-- Подключение скриптов -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js"></script>
+    <script src="renderer.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
