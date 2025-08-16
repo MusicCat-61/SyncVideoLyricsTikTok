@@ -77,7 +77,16 @@ document.addEventListener('DOMContentLoaded', async function() {
         videoWorker = new Worker('video-worker.js');
 
         videoWorker.onmessage = function(e) {
-            const { type, progress } = e.data;
+            const { type, progress, error } = e.data;
+
+            if (type === 'ready') {
+                // Отправляем FFmpeg в воркер
+                videoWorker.postMessage({
+                    type: 'init',
+                    ffmpeg: ffmpeg
+                });
+                return;
+            }
 
             if (type === 'progress') {
                 progressBar.style.width = `${progress}%`;
@@ -108,16 +117,19 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
 
             if (type === 'error') {
-                console.error('Ошибка в Worker:', e.data.error);
-                alert('Ошибка генерации видео');
+                console.error('Ошибка в Worker:', error);
+                alert('Ошибка генерации видео: ' + error);
                 downloadBtn.disabled = false;
                 downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
                 progressContainer.style.display = 'none';
             }
         };
+
+        // Инициируем воркер
+        videoWorker.postMessage({ type: 'ready' });
     }
 
-    // Остальные обработчики событий остаются без изменений
+    // Переключение табов
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             tabs.forEach(t => t.classList.remove('active'));
@@ -128,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
     });
 
+    // Загрузка фонового изображения
     backgroundImageInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -137,6 +150,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
+    // Загрузка шрифта
     fontFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -155,6 +169,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
+    // Загрузка аудио файла
     audioFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
         if (file) {
@@ -164,6 +179,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
+    // Настройки текста
     textColor.addEventListener('input', function() {
         const color = this.value;
         const colorName = getColorName(color);
@@ -183,9 +199,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         previewText.style.bottom = `${position}%`;
     });
 
+    // Воспроизведение предпросмотра
     playBtn.addEventListener('click', startPreview);
     stopBtn.addEventListener('click', stopPreview);
 
+    // Скачивание видео
     downloadBtn.addEventListener('click', async function() {
         if (!ffmpegLoaded) {
             alert('FFmpeg еще не загружен. Подождите несколько секунд...');
@@ -244,7 +262,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
-    // Вспомогательные функции
+    // Функции
     function loadAudioFile(url) {
         if (audioContext) {
             audioContext.close();
