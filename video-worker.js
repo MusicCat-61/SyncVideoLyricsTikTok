@@ -2,7 +2,7 @@
 let ffmpeg = null;
 let isInitialized = false;
 
-self.onmessage = handleMessage;
+
 
 self.onmessage = async function(e) {
     console.log(`[Worker] Получено сообщение типа: ${e.data.type}`, e.data);
