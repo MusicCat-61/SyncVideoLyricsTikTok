@@ -17,6 +17,7 @@ async function renderVideo(options) {
 
     const { bgImageUrl, lyrics, audioBuffer, textAlign, textShadowEnabled, fontSize, textColor, fontUrl } = options;
 
+    // Создаем канвас и рендерим видео как раньше
     const canvas = document.createElement('canvas');
     canvas.width = 270;
     canvas.height = 480;
@@ -30,9 +31,12 @@ async function renderVideo(options) {
       document.fonts.add(font);
     }
 
-    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
-    ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(await fetchFile(audioBlob)));
+    // Конвертируем аудио в правильный формат
+    const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
+    const audioData = new Uint8Array(await audioBlob.arrayBuffer());
+    ffmpeg.FS('writeFile', 'audio.wav', audioData);
 
+    // Записываем видео с канваса
     const stream = canvas.captureStream();
     const mediaRecorder = new MediaRecorder(stream, {
       mimeType: 'video/webm',
@@ -99,30 +103,33 @@ async function renderVideo(options) {
     renderFrame();
 
     const webmBlob = await renderPromise;
-    ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
+    const webmData = new Uint8Array(await webmBlob.arrayBuffer());
+    ffmpeg.FS('writeFile', 'input.webm', webmData);
 
+    // Запускаем FFmpeg и получаем результат в память
     await ffmpeg.run(
-      '-hwaccel', 'auto',
       '-i', 'input.webm',
       '-i', 'audio.wav',
       '-c:v', 'libx264',
-      '-preset', 'fast',
       '-c:a', 'aac',
       '-strict', 'experimental',
-      '-pix_fmt', 'yuv420p',
-      'output.mp4'
+      '-f', 'mp4',
+      '-movflags', 'frag_keyframe+empty_moov',
+      '-'
     );
 
-    const data = ffmpeg.FS('readFile', 'output.mp4');
-    return new Blob([data.buffer], { type: 'video/mp4' });
+    // Получаем результат из памяти
+    const output = ffmpeg.FS('readFile', '-');
+    return new Blob([output.buffer], { type: 'video/mp4' });
 
   } catch (error) {
-    console.error('Ошибка рендеринга возникла:', error);
-    throw error;
+    console.error('Ошибка при создании видео:', error);
+    throw new Error(`Не удалось создать видео: ${error.message}`);
   }
 }
 
-function loadImage(url) {
+// Остальные функции остаются без изменений
+async function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.onload = () => resolve(img);
@@ -130,6 +137,7 @@ function loadImage(url) {
     img.src = url;
   });
 }
+
 
 function bufferToBlob(buffer) {
   return new Blob([buffer], { type: 'audio/wav' });
