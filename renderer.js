@@ -3,9 +3,10 @@ const { createFFmpeg, fetchFile } = FFmpeg;
 
 const ffmpeg = createFFmpeg({
   log: true,
-  orePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
-  mainName: 'main', // Add this line
-  MEMFS: 2048 // Increase memory if needed (in MB)
+  corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+  mainName: 'main',
+  MEMFS: 2048,
+  workerPath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.worker.js'
 });
 
 async function renderVideo(options) {
@@ -29,8 +30,8 @@ async function renderVideo(options) {
       document.fonts.add(font);
     }
 
-    const audioBlob = await bufferToBlob(audioBuffer);
-    ffmpeg.FS('writeFile', 'audio.wav', await fetchFile(audioBlob));
+    const audioBlob = new Blob([new Uint8Array(audioBuffer)], { type: 'audio/wav' });
+    ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(await fetchFile(audioBlob)));
 
     const stream = canvas.captureStream();
     const mediaRecorder = new MediaRecorder(stream, {
@@ -101,9 +102,11 @@ async function renderVideo(options) {
     ffmpeg.FS('writeFile', 'input.webm', await fetchFile(webmBlob));
 
     await ffmpeg.run(
+      '-hwaccel', 'auto',
       '-i', 'input.webm',
       '-i', 'audio.wav',
       '-c:v', 'libx264',
+      '-preset', 'fast',
       '-c:a', 'aac',
       '-strict', 'experimental',
       '-pix_fmt', 'yuv420p',
