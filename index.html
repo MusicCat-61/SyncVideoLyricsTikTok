@@ -152,6 +152,13 @@
             <li>Экспортируйте готовое видео</li>
         </ol>
     </div>
+    <!-- Добавьте перед закрывающим тегом body -->
+    <div id="processing-status" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(0,0,0,0.8); color: white; padding: 20px; border-radius: 5px; z-index: 1000;">
+        <div style="margin-bottom: 10px;">Обработка видео: <span id="progress-percent">0</span>%</div>
+        <div style="width: 300px; height: 20px; background: #333; border-radius: 10px; overflow: hidden;">
+            <div id="progress-bar" style="height: 100%; width: 0%; background: #4CAF50; transition: width 0.3s;"></div>
+        </div>
+    </div>
 
     <!-- Скрытый canvas для рендеринга -->
     <canvas id="render-canvas" style="display: none;"></canvas>
