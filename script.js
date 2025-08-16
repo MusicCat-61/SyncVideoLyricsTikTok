@@ -52,8 +52,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     let backgroundImageUrl = '';
     let audioFileUrl = '';
     let fontName = 'sans-serif';
-    let zoomEffect = 1;
-    let zoomDirection = 0.0005;
+    let posX = 0;
+    let posY = 0;
+    let moveDirectionX = 0.1;
+    let moveDirectionY = 0.1;
 
     // Функция для обновления состояния кнопок
     function updateButtonsState() {
@@ -87,8 +89,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             backgroundImageInfo.textContent = file.name;
             backgroundImageUrl = URL.createObjectURL(file);
             previewBackground.src = backgroundImageUrl;
-            previewBackground.style.transform = 'scale(1)'; // Сброс масштаба
-            zoomEffect = 1;
+            previewBackground.style.transform = 'translate(0, 0)';
+            posX = 0;
+            posY = 0;
         }
     });
 
@@ -199,16 +202,19 @@ document.addEventListener('DOMContentLoaded', async function() {
     function animateBackground() {
         if (!isPlaying) return;
 
-        // Плавное увеличение/уменьшение масштаба
-        zoomEffect += zoomDirection;
+        // Плавное перемещение по горизонтали и вертикали
+        posX += moveDirectionX;
+        posY += moveDirectionY;
 
-        if (zoomEffect > 1.05) {
-            zoomDirection = -0.0005;
-        } else if (zoomEffect < 1.0) {
-            zoomDirection = 0.0005;
+        // Меняем направление при достижении границ
+        if (posX > 5 || posX < -5) {
+            moveDirectionX *= -1;
+        }
+        if (posY > 5 || posY < -5) {
+            moveDirectionY *= -1;
         }
 
-        previewBackground.style.transform = `scale(${zoomEffect})`;
+        previewBackground.style.transform = `translate(${posX}px, ${posY}px)`;
         animationFrameId = requestAnimationFrame(animateBackground);
     }
 
@@ -298,8 +304,9 @@ document.addEventListener('DOMContentLoaded', async function() {
         cancelAnimationFrame(animationFrameId);
         previewText.classList.remove('active');
         previewText.textContent = '';
-        previewBackground.style.transform = 'scale(1)';
-        zoomEffect = 1;
+        previewBackground.style.transform = 'translate(0, 0)';
+        posX = 0;
+        posY = 0;
 
         // Сброс прогрессбара в начало
         previewTimeline.value = 0;
