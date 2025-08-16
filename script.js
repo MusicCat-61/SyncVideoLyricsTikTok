@@ -2,14 +2,7 @@
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Добавим статус загрузки в интерфейс
-    const statusElement = document.createElement('div');
-    statusElement.id = 'ffmpeg-status';
-    statusElement.style.padding = '10px';
-    statusElement.style.backgroundColor = '#f8f9fa';
-    statusElement.style.borderRadius = '4px';
-    statusElement.style.marginBottom = '10px';
-    statusElement.textContent = 'Загружается FFmpeg...';
-    document.querySelector('.editor-panel').prepend(statusElement);
+
 
     // Элементы интерфейса
     const tabs = document.querySelectorAll('.tab');
