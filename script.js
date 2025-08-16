@@ -339,76 +339,60 @@ function resetLyrics() {
 
 async function exportVideo() {
   try {
-    // Проверяем все необходимые данные
-    const missingFields = [];
-    if (!audioBuffer) missingFields.push('аудиофайл');
-    if (!lyricsInput.value) missingFields.push('текст песни');
-    if (!bgImageInput.files[0]) missingFields.push('фоновое изображение');
-
-    if (missingFields.length > 0) {
-      alert(`Пожалуйста, загрузите: ${missingFields.join(', ')}`);
+    if (!audioBuffer || !lyricsInput.value || !bgImageInput.files[0]) {
+      alert('Загрузите аудио, фон и текст песни!');
       return;
     }
 
-    // Парсим текст песни
+    // Парсим текст
     const parsedLyrics = parseLyrics(lyricsInput.value);
     if (parsedLyrics.length === 0) {
-      alert('Не удалось распознать текст с таймкодами. Проверьте формат.');
+      alert('Ошибка в формате текста! Пример:\n[00:01.23]Текст строки');
       return;
     }
 
-    const exportBtn = document.getElementById('export-btn');
+    // Показываем loader
     exportBtn.disabled = true;
     exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Рендеринг...';
 
-    // Получаем данные фона
-    const bgImageFile = bgImageInput.files[0];
-    const bgImageUrl = await new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.readAsDataURL(bgImageFile);
-    });
+    // Готовим данные
+    const bgImageUrl = await readFileAsDataURL(bgImageInput.files[0]);
+    const fontUrl = fontFileInput.files[0] ? await readFileAsDataURL(fontFileInput.files[0]) : null;
 
-    // Получаем данные шрифта (если есть)
-    let fontDataUrl = null;
-    if (fontFileInput.files[0]) {
-      fontDataUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(fontFileInput.files[0]);
-      });
-    }
-
+    // Рендерим
     const videoBlob = await renderVideo({
       bgImageUrl,
       lyrics: parsedLyrics,
       audioBuffer,
-      textAlign: document.querySelector('.align-btn.active')?.getAttribute('data-align') || 'center',
+      textAlign: document.querySelector('.align-btn.active')?.dataset.align || 'center',
       textShadowEnabled: textShadow.checked,
       fontSize: fontSize.value,
       textColor: textColor.value,
-      fontUrl: fontDataUrl
+      fontUrl
     });
 
-    const url = URL.createObjectURL(videoBlob);
+    // Скачиваем
     const a = document.createElement('a');
-    a.href = url;
-    a.download = 'synclirycs-video.mp4';
-    document.body.appendChild(a);
+    a.href = URL.createObjectURL(videoBlob);
+    a.download = 'karaoke-video.mp4';
     a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
 
   } catch (error) {
     console.error('Ошибка:', error);
-    alert('Ошибка при создании видео: ' + error.message);
+    alert(`Ошибка: ${error.message}`);
   } finally {
-    const exportBtn = document.getElementById('export-btn');
-    if (exportBtn) {
-      exportBtn.disabled = false;
-      exportBtn.innerHTML = '<i class="fas fa-download"></i> Экспорт видео';
-    }
+    exportBtn.disabled = false;
+    exportBtn.innerHTML = '<i class="fas fa-download"></i> Экспорт видео';
   }
+}
+
+// Вспомогательная функция
+function readFileAsDataURL(file) {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = (e) => resolve(e.target.result);
+    reader.readAsDataURL(file);
+  });
 }
 
 function switchTab(tabId) {
