@@ -20,6 +20,8 @@ body {
     flex-direction: column;
 }
 
+
+
 header {
     background-color: var(--primary-color);
     color: white;
@@ -283,4 +285,42 @@ header {
     line-height: 20px;
     color: var(--dark-color);
     font-weight: 500;
+}
+
+.preview-timeline {
+    width: 100%;
+    margin-top: 10px;
+}
+
+.preview-timeline input[type="range"] {
+    width: 100%;
+}
+
+.time-display {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+    margin-top: 5px;
+}
+#progress-container {
+    width: 100%;
+    background-color: #f1f1f1;
+    border-radius: 4px;
+    margin-top: 10px;
+    display: none;
+}
+
+#progress-bar {
+    height: 20px;
+    background-color: #4CAF50;
+    border-radius: 4px;
+    width: 0%;
+    transition: width 0.3s;
+}
+
+#progress-text {
+    text-align: center;
+    color: #333;
+    padding: 5px 0;
 }

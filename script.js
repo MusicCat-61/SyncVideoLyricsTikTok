@@ -68,6 +68,25 @@ document.addEventListener('DOMContentLoaded', async function() {
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
 
+    previewText.style.color = textColor.value;
+    previewText.style.fontSize = `${textSize.value}px`;
+    previewText.style.bottom = `${textPosition.value}%`;
+
+    const strokeColor = document.getElementById('stroke-color');
+    const strokeColorValue = document.getElementById('stroke-color-value');
+    const strokeSize = document.getElementById('stroke-size');
+    const strokeSizeValue = document.getElementById('stroke-size-value');
+    const previewTimeline = document.getElementById('preview-timeline');
+    const currentTimeDisplay = document.getElementById('current-time');
+    const totalTimeDisplay = document.getElementById('total-time');
+
+    // Инициализация стилей обводки
+    previewText.style.textShadow = `${strokeSize.value}px ${strokeSize.value}px ${strokeSize.value}px ${strokeColor.value}`;
+
+// Обработчики для обводки
+
+
+
     // Переменные состояния
     let audioContext;
     let audioBuffer;
@@ -150,6 +169,46 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
     });
 
+    strokeColor.addEventListener('input', function() {
+        const color = this.value;
+        const colorName = getColorName(color);
+        strokeColorValue.textContent = `${colorName} (${color.toUpperCase()})`;
+        updateTextStroke();
+    });
+
+    strokeSize.addEventListener('input', function() {
+        const size = this.value;
+        strokeSizeValue.textContent = size;
+        updateTextStroke();
+    });
+
+    function updateTextStroke() {
+        previewText.style.textShadow = `${strokeSize.value}px ${strokeSize.value}px ${strokeSize.value}px ${strokeColor.value}`;
+    }
+
+    // Обработчик для ползунка предпросмотра
+    previewTimeline.addEventListener('input', function() {
+        if (audioBuffer && !isPlaying) {
+            const seekTime = (this.value / 100) * audioBuffer.duration;
+            currentTimeDisplay.textContent = formatTime(seekTime);
+        }
+    });
+
+    previewTimeline.addEventListener('change', function() {
+        if (audioBuffer && isPlaying) {
+            stopPreview();
+            startTime = audioContext.currentTime - (this.value / 100) * audioBuffer.duration;
+            startPreview();
+        }
+    });
+
+    // Функция форматирования времени
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins}:${secs.toString().padStart(2, '0')}`;
+    }
+
     // Загрузка аудио файла
     audioFileInput.addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -227,6 +286,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 lyrics: lyrics,
                 audioDuration: audioBuffer.duration,
                 textColor: textColor.value,
+                strokeColor: strokeColor.value,
+                strokeSize: strokeSize.value,
                 textSize: textSize.value,
                 textPosition: textPosition.value,
                 fontName: fontName,
@@ -250,8 +311,11 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Функция генерации видео
     async function generateVideo(params) {
         try {
+            // Обновляем статус
+            updateProgress(0, 'Подготовка данных...');
+
             // Загружаем фоновое изображение
-            console.log('[Main] Загрузка фонового изображения...');
+            updateProgress(5, 'Загрузка фонового изображения...');
             const bgImg = await createImage(params.bgImg);
 
             // Создаем canvas
@@ -270,8 +334,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             } catch (e) {}
 
-            // Обработка кадров
-            for (let i = 0; i < frameCount; i += 10) { // Уменьшаем batch size для лучшей отзывчивости
+            // Этап 1: Генерация кадров
+            updateProgress(10, 'Генерация кадров... (0%)');
+            const framesProgressStep = 70; // 70% от общего прогресса на кадры
+
+            for (let i = 0; i < frameCount; i += 10) {
                 const batchEnd = Math.min(i + 10, frameCount);
 
                 for (let j = i; j < batchEnd; j++) {
@@ -295,19 +362,19 @@ document.addEventListener('DOMContentLoaded', async function() {
                         new Uint8Array(arrayBuffer));
                 }
 
-                // Обновление прогресса
-                const progress = Math.floor((batchEnd / frameCount) * 100);
-                progressBar.style.width = `${progress}%`;
-                progressText.textContent = `${progress}%`;
+                // Обновление прогресса для этапа генерации кадров
+                const framesProgress = Math.floor((batchEnd / frameCount) * framesProgressStep);
+                updateProgress(10 + framesProgress, `Генерация кадров... (${Math.floor((batchEnd / frameCount) * 100)}%)`);
+
                 await new Promise(resolve => setTimeout(resolve, 0)); // Даем UI обновиться
             }
 
-            // Запись аудио
-            console.log('[Main] Запись аудио...');
+            // Этап 2: Запись аудио
+            updateProgress(85, 'Загрузка аудио...');
             ffmpeg.FS('writeFile', 'audio.mp3', new Uint8Array(params.audioData));
 
-            // Создание видео
-            console.log('[Main] Создание видео...');
+            // Этап 3: Создание видео
+            updateProgress(90, 'Создание видео... (это может занять несколько минут)');
             await ffmpeg.run(
                 '-f', 'image2',
                 '-i', 'frame%05d.jpg',
@@ -323,8 +390,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 'output.mp4'
             );
 
-            // Скачивание результата
-            console.log('[Main] Видео создано, подготовка к скачиванию...');
+            // Этап 4: Подготовка к скачиванию
+            updateProgress(95, 'Подготовка видео...');
             const data = ffmpeg.FS('readFile', 'output.mp4');
             const blob = new Blob([data.buffer], { type: 'video/mp4' });
             const url = URL.createObjectURL(blob);
@@ -333,6 +400,9 @@ document.addEventListener('DOMContentLoaded', async function() {
             a.download = params.filename;
             document.body.appendChild(a);
             a.click();
+
+            // Завершение
+            updateProgress(100, 'Готово!');
 
             // Очистка
             setTimeout(() => {
@@ -344,8 +414,26 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         } catch (error) {
             console.error('[Main] Ошибка генерации видео:', error);
+            updateProgress(0, `Ошибка: ${error.message}`);
             throw error;
         }
+    }
+
+    function updateProgress(percent, message) {
+        progressBar.style.width = `${percent}%`;
+        progressText.textContent = `${percent}%`;
+
+        // Добавим элемент для отображения сообщения
+        if (!document.getElementById('progress-message')) {
+            const messageElement = document.createElement('div');
+            messageElement.id = 'progress-message';
+            messageElement.style.marginTop = '5px';
+            messageElement.style.fontSize = '0.9em';
+            messageElement.style.color = '#666';
+            progressContainer.appendChild(messageElement);
+        }
+
+        document.getElementById('progress-message').textContent = message;
     }
 
     // Вспомогательные функции
@@ -369,20 +457,30 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function renderText(ctx, text, params) {
+
+        ctx.strokeStyle = params.strokeColor || '#000000';
+        ctx.lineWidth = params.strokeSize || 2;
+        ctx.strokeText(text, params.width / 2, yPos - (lines.length - k - 1) * lineHeight);
+
+        // Основной текст
         ctx.fillStyle = params.textColor;
         ctx.font = `${params.textSize}px '${params.fontName}'`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 3;
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 1;
 
         const yPos = params.height - (params.height * (params.textPosition / 100));
         const lines = text.split('\n');
         const lineHeight = parseInt(params.textSize) * 1.2;
 
         for (let k = 0; k < lines.length; k++) {
+            // Сначала рисуем обводку
+            ctx.strokeText(
+                lines[k],
+                params.width / 2,
+                yPos - (lines.length - k - 1) * lineHeight
+            );
+
+            // Затем основной текст
             ctx.fillText(
                 lines[k],
                 params.width / 2,
@@ -446,12 +544,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         isPlaying = true;
-        startTime = audioContext.currentTime;
+        startTime = audioContext.currentTime - (previewTimeline.value / 100) * audioBuffer.duration;
 
         audioSource = audioContext.createBufferSource();
         audioSource.buffer = audioBuffer;
         audioSource.connect(audioContext.destination);
-        audioSource.start();
+        audioSource.start(0, (previewTimeline.value / 100) * audioBuffer.duration);
+
+        // Установите общее время
+        totalTimeDisplay.textContent = formatTime(audioBuffer.duration);
 
         updateLyrics();
 
@@ -459,6 +560,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             stopPreview();
         };
     }
+
 
     function stopPreview() {
         if (!isPlaying) return;
@@ -472,12 +574,21 @@ document.addEventListener('DOMContentLoaded', async function() {
         cancelAnimationFrame(animationFrameId);
         previewText.classList.remove('active');
         previewText.textContent = '';
+
+        if (audioBuffer) {
+            currentTimeDisplay.textContent = formatTime((previewTimeline.value / 100) * audioBuffer.duration);
+        }
     }
+
 
     function updateLyrics() {
         if (!isPlaying) return;
 
         const currentTime = audioContext.currentTime - startTime;
+        const progress = (currentTime / audioBuffer.duration) * 100;
+        previewTimeline.value = progress;
+        currentTimeDisplay.textContent = formatTime(currentTime);
+
         let currentText = '';
         let nextText = '';
 

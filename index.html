@@ -81,6 +81,19 @@
                     <label for="text-position">Позиция текста: <span id="text-position-value">45</span>% от низа</label>
                     <input type="range" class="range-slider" id="text-position" min="5" max="70" value="45">
                 </div>
+              <div class="form-group">
+                  <label>Цвет обводки</label>
+                  <div class="color-picker">
+                      <input type="color" id="stroke-color" value="#000000" style="width: 60px; height: 60px;">
+                      <span id="stroke-color-value">Чёрный (#000000)</span>
+                  </div>
+              </div>
+
+              <div class="form-group">
+                  <label for="stroke-size">Размер обводки: <span id="stroke-size-value">2</span>px</label>
+                  <input type="range" class="range-slider" id="stroke-size" min="0" max="10" value="2">
+              </div>
+
             </div>
 
             <div class="form-group" style="margin-top: auto;">
@@ -108,6 +121,12 @@
                 <button class="btn btn-secondary" id="stop-btn">
                     <i class="fas fa-stop"></i> Стоп
                 </button>
+                <div class="preview-timeline">
+                    <input type="range" id="preview-timeline" min="0" max="100" value="0">
+                    <div class="time-display">
+                        <span id="current-time">0:00</span> / <span id="total-time">0:00</span>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
