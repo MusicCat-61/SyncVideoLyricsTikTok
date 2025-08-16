@@ -120,7 +120,7 @@
         window.ffmpegLoading = new Promise(async (resolve) => {
       const { createFFmpeg } = FFmpeg;
       const ffmpeg = createFFmpeg({
-        log: true,
+        log: false,
         corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
       });
       await ffmpeg.load();
