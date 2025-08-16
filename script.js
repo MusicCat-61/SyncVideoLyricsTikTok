@@ -1,9 +1,4 @@
-
-
 document.addEventListener('DOMContentLoaded', async function() {
-    // Добавим статус загрузки в интерфейс
-
-
     // Элементы интерфейса
     const tabs = document.querySelectorAll('.tab');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -20,20 +15,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     const textSizeValue = document.getElementById('text-size-value');
     const textPosition = document.getElementById('text-position');
     const textPositionValue = document.getElementById('text-position-value');
-
     const playBtn = document.getElementById('play-btn');
     const stopBtn = document.getElementById('stop-btn');
     const previewBackground = document.getElementById('preview-background');
     const previewText = document.getElementById('preview-text');
-    const progressContainer = document.getElementById('progress-container');
-    const progressBar = document.getElementById('progress-bar');
-    const progressText = document.getElementById('progress-text');
-    const progressText1 = document.getElementById('progress-text1');
-
-    previewText.style.color = textColor.value;
-    previewText.style.fontSize = `${textSize.value}px`;
-    previewText.style.bottom = `${textPosition.value}%`;
-
     const strokeColor = document.getElementById('stroke-color');
     const strokeColorValue = document.getElementById('stroke-color-value');
     const strokeSize = document.getElementById('stroke-size');
@@ -41,12 +26,20 @@ document.addEventListener('DOMContentLoaded', async function() {
     const previewTimeline = document.getElementById('preview-timeline');
     const currentTimeDisplay = document.getElementById('current-time');
     const totalTimeDisplay = document.getElementById('total-time');
+    const previewContainer = document.querySelector('.preview-container');
 
-    // Инициализация стилей обводки
+    // Добавляем кнопку полноэкранного режима
+    const fullscreenBtn = document.createElement('button');
+    fullscreenBtn.className = 'btn fullscreen-btn';
+    fullscreenBtn.innerHTML = '<i class="fas fa-expand"></i>';
+    fullscreenBtn.title = 'Полноэкранный режим';
+    document.querySelector('.preview-controls').prepend(fullscreenBtn);
+
+    // Инициализация стилей
+    previewText.style.color = textColor.value;
+    previewText.style.fontSize = `${textSize.value}px`;
+    previewText.style.bottom = `${textPosition.value}%`;
     previewText.style.textShadow = `${strokeSize.value}px ${strokeSize.value}px ${strokeSize.value}px ${strokeColor.value}`;
-
-
-
 
     // Переменные состояния
     let audioContext;
@@ -59,10 +52,22 @@ document.addEventListener('DOMContentLoaded', async function() {
     let backgroundImageUrl = '';
     let audioFileUrl = '';
     let fontName = 'sans-serif';
-    let ffmpeg = null;
-    let ffmpegLoaded = false;
+    let zoomEffect = 1;
+    let zoomDirection = 0.0005;
 
+    // Функция для обновления состояния кнопок
+    function updateButtonsState() {
+        if (isPlaying) {
+            playBtn.classList.add('disabled');
+            stopBtn.classList.remove('disabled');
+        } else {
+            playBtn.classList.remove('disabled');
+            stopBtn.classList.add('disabled');
+        }
+    }
 
+    // Инициализация состояния кнопок
+    updateButtonsState();
 
     // Переключение табов
     tabs.forEach(tab => {
@@ -82,6 +87,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             backgroundImageInfo.textContent = file.name;
             backgroundImageUrl = URL.createObjectURL(file);
             previewBackground.src = backgroundImageUrl;
+            previewBackground.style.transform = 'scale(1)'; // Сброс масштаба
+            zoomEffect = 1;
         }
     });
 
@@ -177,8 +184,34 @@ document.addEventListener('DOMContentLoaded', async function() {
     playBtn.addEventListener('click', startPreview);
     stopBtn.addEventListener('click', stopPreview);
 
+    // Полноэкранный режим
+    fullscreenBtn.addEventListener('click', function() {
+        if (previewContainer.requestFullscreen) {
+            previewContainer.requestFullscreen();
+        } else if (previewContainer.webkitRequestFullscreen) {
+            previewContainer.webkitRequestFullscreen();
+        } else if (previewContainer.msRequestFullscreen) {
+            previewContainer.msRequestFullscreen();
+        }
+    });
 
-    // Остальные функции остаются без изменений
+    // Анимация фонового изображения
+    function animateBackground() {
+        if (!isPlaying) return;
+
+        // Плавное увеличение/уменьшение масштаба
+        zoomEffect += zoomDirection;
+
+        if (zoomEffect > 1.05) {
+            zoomDirection = -0.0005;
+        } else if (zoomEffect < 1.0) {
+            zoomDirection = 0.0005;
+        }
+
+        previewBackground.style.transform = `scale(${zoomEffect})`;
+        animationFrameId = requestAnimationFrame(animateBackground);
+    }
+
     function loadAudioFile(url) {
         if (audioContext) {
             audioContext.close();
@@ -191,6 +224,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
             .then(buffer => {
                 audioBuffer = buffer;
+                totalTimeDisplay.textContent = formatTime(buffer.duration);
             })
             .catch(error => {
                 console.error('Ошибка загрузки аудио:', error);
@@ -233,6 +267,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         }
 
         isPlaying = true;
+        updateButtonsState();
         startTime = audioContext.currentTime - (previewTimeline.value / 100) * audioBuffer.duration;
 
         audioSource = audioContext.createBufferSource();
@@ -240,9 +275,8 @@ document.addEventListener('DOMContentLoaded', async function() {
         audioSource.connect(audioContext.destination);
         audioSource.start(0, (previewTimeline.value / 100) * audioBuffer.duration);
 
-        // Установите общее время
-        totalTimeDisplay.textContent = formatTime(audioBuffer.duration);
-
+        // Запуск анимации фона
+        animateBackground();
         updateLyrics();
 
         audioSource.onended = function() {
@@ -250,11 +284,12 @@ document.addEventListener('DOMContentLoaded', async function() {
         };
     }
 
-
     function stopPreview() {
         if (!isPlaying) return;
 
         isPlaying = false;
+        updateButtonsState();
+
         if (audioSource) {
             audioSource.stop();
             audioSource = null;
@@ -263,12 +298,15 @@ document.addEventListener('DOMContentLoaded', async function() {
         cancelAnimationFrame(animationFrameId);
         previewText.classList.remove('active');
         previewText.textContent = '';
+        previewBackground.style.transform = 'scale(1)';
+        zoomEffect = 1;
 
+        // Сброс прогрессбара в начало
+        previewTimeline.value = 0;
         if (audioBuffer) {
-            currentTimeDisplay.textContent = formatTime((previewTimeline.value / 100) * audioBuffer.duration);
+            currentTimeDisplay.textContent = formatTime(0);
         }
     }
-
 
     function updateLyrics() {
         if (!isPlaying) return;
@@ -317,6 +355,4 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         return colors[hex.toUpperCase()] || hex;
     }
-
-
 });
