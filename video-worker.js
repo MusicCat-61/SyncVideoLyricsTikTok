@@ -1,128 +1,157 @@
+// video-worker.js
 let ffmpeg = null;
+let isInitialized = false;
 
 self.onmessage = async function(e) {
-   if (e.data.type === 'init') {
-        try {
-            ffmpeg = e.data.ffmpeg;
-            // Добавляем проверку загрузки
-            if (!ffmpeg.isLoaded()) {
-                await ffmpeg.load();
-            }
-            self.postMessage({ type: 'ready' });
-        } catch (error) {
-            self.postMessage({ type: 'error', error: 'Ошибка инициализации FFmpeg: ' + error.message });
-        }
-        return;
-    }
+    console.log(`[Worker] Получено сообщение типа: ${e.data.type}`, e.data);
 
-    if (e.data.type === 'start') {
-        try {
-            if (!ffmpeg || !ffmpeg.isLoaded()) {
-                self.postMessage({ type: 'error', error: 'FFmpeg не готов к работе' });
-                return;
-            }
+    try {
+        switch (e.data.type) {
+            case 'init':
+                console.log('[Worker] Начало инициализации FFmpeg');
 
-            const params = e.data.params;
-            const { width, height, frameRate } = params;
-
-            if (!ffmpeg.isLoaded()) {
-                await ffmpeg.load();
-            }
-            console.log('Получил FFmpeg в воркере', ffmpeg !== null);
-
-            // Загружаем фоновое изображение
-            const bgImg = await createImageBitmap(await (await fetch(params.bgImg)).blob());
-
-            // Создаем canvas для рендеринга
-            const canvas = new OffscreenCanvas(width, height);
-            const ctx = canvas.getContext('2d');
-
-            const lyrics = params.lyrics;
-            const audioDuration = params.audioDuration;
-            const frameCount = Math.ceil(audioDuration * frameRate);
-            const batchSize = 30; // Размер пачки кадров
-
-            for (let i = 0; i < frameCount; i += batchSize) {
-                const batchEnd = Math.min(i + batchSize, frameCount);
-
-                for (let j = i; j < batchEnd; j++) {
-                    const time = j / frameRate;
-                    let currentText = '';
-
-                    // Находим текст для текущего времени
-                    for (const line of lyrics) {
-                        if (line.time <= time) {
-                            currentText = line.text;
-                        } else {
-                            break;
-                        }
-                    }
-
-                    // Очищаем canvas
-                    ctx.clearRect(0, 0, width, height);
-
-                    // Рисуем фон
-                    ctx.drawImage(bgImg, 0, 0, width, height);
-
-                    // Рисуем текст, если есть
-                    if (currentText) {
-                        ctx.fillStyle = params.textColor;
-                        ctx.font = `${params.textSize}px '${params.fontName}'`;
-                        ctx.textAlign = 'center';
-                        ctx.textBaseline = 'bottom';
-                        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-                        ctx.shadowBlur = 3;
-                        ctx.shadowOffsetX = 1;
-                        ctx.shadowOffsetY = 1;
-
-                        const yPos = height - (height * (params.textPosition / 100));
-                        const xPos = width / 2;
-
-                        const lines = currentText.split('\n');
-                        const lineHeight = parseInt(params.textSize) * 1.2;
-
-                        for (let k = 0; k < lines.length; k++) {
-                            ctx.fillText(lines[k], xPos, yPos - (lines.length - k - 1) * lineHeight);
-                        }
-                    }
-
-                    // Сохраняем кадр
-                    const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
-                    const arrayBuffer = await blob.arrayBuffer();
-                    ffmpeg.FS('writeFile', `frame${j.toString().padStart(5, '0')}.jpg`, new Uint8Array(arrayBuffer));
+                if (!e.data.ffmpeg) {
+                    throw new Error('FFmpeg объект не передан');
                 }
 
-                // Отправляем прогресс
-                const progress = Math.floor((batchEnd / frameCount) * 100);
-                self.postMessage({ type: 'progress', progress });
-            }
+                ffmpeg = e.data.ffmpeg;
+                console.log('[Worker] FFmpeg получен', ffmpeg !== null);
 
-            // Записываем аудио
-            ffmpeg.FS('writeFile', 'audio.mp3', new Uint8Array(params.audioData));
+                if (!ffmpeg.isLoaded()) {
+                    console.log('[Worker] FFmpeg не загружен, начинаю загрузку...');
+                    await ffmpeg.load();
+                    console.log('[Worker] FFmpeg успешно загружен');
+                }
 
-            // Создаем видео
-            await ffmpeg.run(
-                '-f', 'image2',
-                '-i', 'frame%05d.jpg',
-                '-i', 'audio.mp3',
-                '-r', frameRate.toString(),
-                '-c:v', 'libx264',
-                '-preset', 'fast',
-                '-crf', '20',
-                '-pix_fmt', 'yuv420p',
-                '-c:a', 'aac',
-                '-b:a', '192k',
-                '-shortest',
-                'output.mp4'
-            );
+                isInitialized = true;
+                self.postMessage({ type: 'ready' });
+                console.log('[Worker] Отправлено сообщение ready');
+                break;
 
-            // Получаем результат
-            const data = ffmpeg.FS('readFile', 'output.mp4');
-            const blob = new Blob([data.buffer], { type: 'video/mp4' });
+            case 'start':
+                console.log('[Worker] Получена команда start');
 
-            self.postMessage({ type: 'complete', blob });
-        } catch (error) {
-            self.postMessage({ type: 'error', error: error.message });
+                if (!isInitialized || !ffmpeg || !ffmpeg.isLoaded()) {
+                    const errorMsg = !ffmpeg ? 'FFmpeg не передан' :
+                                   !ffmpeg.isLoaded() ? 'FFmpeg не загружен' :
+                                   'Воркер не инициализирован';
+                    throw new Error(errorMsg);
+                }
+
+                console.log('[Worker] FFmpeg готов, начинаю обработку видео...');
+                const params = e.data.params;
+                console.log('[Worker] Параметры:', {
+                    width: params.width,
+                    height: params.height,
+                    frameRate: params.frameRate,
+                    audioDuration: params.audioDuration
+                });
+
+                // Загружаем фоновое изображение
+                console.log('[Worker] Загрузка фонового изображения...');
+                const bgImg = await createImageBitmap(await (await fetch(params.bgImg)).blob());
+
+                // Создаем canvas
+                const canvas = new OffscreenCanvas(params.width, params.height);
+                const ctx = canvas.getContext('2d');
+                const frameCount = Math.ceil(params.audioDuration * params.frameRate);
+                console.log(`[Worker] Всего кадров: ${frameCount}`);
+
+                // Обработка кадров
+                for (let i = 0; i < frameCount; i += 30) {
+                    const batchEnd = Math.min(i + 30, frameCount);
+
+                    for (let j = i; j < batchEnd; j++) {
+                        const time = j / params.frameRate;
+                        let currentText = '';
+
+                        // Поиск текста для текущего времени
+                        for (const line of params.lyrics) {
+                            if (line.time <= time) {
+                                currentText = line.text;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        // Рендеринг кадра
+                        ctx.clearRect(0, 0, params.width, params.height);
+                        ctx.drawImage(bgImg, 0, 0, params.width, params.height);
+
+                        if (currentText) {
+                            ctx.fillStyle = params.textColor;
+                            ctx.font = `${params.textSize}px '${params.fontName}'`;
+                            ctx.textAlign = 'center';
+                            ctx.textBaseline = 'bottom';
+                            ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                            ctx.shadowBlur = 3;
+                            ctx.shadowOffsetX = 1;
+                            ctx.shadowOffsetY = 1;
+
+                            const yPos = params.height - (params.height * (params.textPosition / 100));
+                            const lines = currentText.split('\n');
+                            const lineHeight = parseInt(params.textSize) * 1.2;
+
+                            for (let k = 0; k < lines.length; k++) {
+                                ctx.fillText(
+                                    lines[k],
+                                    params.width / 2,
+                                    yPos - (lines.length - k - 1) * lineHeight
+                                );
+                            }
+                        }
+
+                        // Сохранение кадра
+                        const blob = await canvas.convertToBlob({ type: 'image/jpeg', quality: 0.9 });
+                        const arrayBuffer = await blob.arrayBuffer();
+                        ffmpeg.FS('writeFile', `frame${j.toString().padStart(5, '0')}.jpg`, new Uint8Array(arrayBuffer));
+                    }
+
+                    // Отправка прогресса
+                    const progress = Math.floor((batchEnd / frameCount) * 100);
+                    self.postMessage({ type: 'progress', progress });
+                    console.log(`[Worker] Прогресс: ${progress}%`);
+                }
+
+                // Запись аудио
+                console.log('[Worker] Запись аудио...');
+                ffmpeg.FS('writeFile', 'audio.mp3', new Uint8Array(params.audioData));
+
+                // Создание видео
+                console.log('[Worker] Создание видео...');
+                await ffmpeg.run(
+                    '-f', 'image2',
+                    '-i', 'frame%05d.jpg',
+                    '-i', 'audio.mp3',
+                    '-r', params.frameRate.toString(),
+                    '-c:v', 'libx264',
+                    '-preset', 'fast',
+                    '-crf', '20',
+                    '-pix_fmt', 'yuv420p',
+                    '-c:a', 'aac',
+                    '-b:a', '192k',
+                    '-shortest',
+                    'output.mp4'
+                );
+
+                // Получение результата
+                console.log('[Worker] Видео создано, отправка результата...');
+                const data = ffmpeg.FS('readFile', 'output.mp4');
+                const blob = new Blob([data.buffer], { type: 'video/mp4' });
+                self.postMessage({ type: 'complete', blob });
+                break;
+
+            default:
+                throw new Error(`Неизвестный тип сообщения: ${e.data.type}`);
         }
+    } catch (error) {
+        console.error('[Worker] Ошибка:', error);
+        self.postMessage({
+            type: 'error',
+            error: error.message,
+            stack: error.stack
+        });
     }
 };
+
+console.log('[Worker] Воркер загружен и готов к работе');

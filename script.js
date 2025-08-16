@@ -72,9 +72,15 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Инициализация WebWorker
     async function initWorker() {
-        if (videoWorker) return;
+        console.log('[Main] Инициализация воркера...');
+        if (videoWorker) {
+            console.log('[Main] Воркер уже существует');
+            return;
+        }
 
         videoWorker = new Worker('video-worker.js');
+        console.log('[Main] Воркер создан');
+
 
         // Обработчик сообщений от воркера
         videoWorker.onmessage = function(e) {
@@ -124,23 +130,22 @@ document.addEventListener('DOMContentLoaded', async function() {
         await new Promise(resolve => {
             const handler = function(e) {
                 if (e.data.type === 'ready') {
+                    console.log('[Main] Воркер сообщил, что готов к приёму FFmpeg');
                     videoWorker.removeEventListener('message', handler);
                     resolve();
                 }
             };
             videoWorker.addEventListener('message', handler);
 
-            // Инициируем воркер
+            console.log('[Main] Отправляю воркеру сообщение ready');
             videoWorker.postMessage({ type: 'ready' });
-
         });
 
-        // Теперь безопасно отправляем FFmpeg
+        console.log('[Main] Отправляю FFmpeg в воркер', ffmpeg !== null);
         videoWorker.postMessage({
             type: 'init',
             ffmpeg: ffmpeg
         });
-        console.log('Отправляю FFmpeg в воркер', ffmpeg !== null);
 
         return videoWorker;
     }
@@ -249,10 +254,13 @@ document.addEventListener('DOMContentLoaded', async function() {
 
         try {
 
+            console.log('[Main] Инициализация воркера...');
             await initWorker();
 
-            // Добавляем небольшую задержку для гарантии
+            console.log('[Main] Воркер инициализирован...');
             await new Promise(resolve => setTimeout(resolve, 100));
+
+            console.log('[Main] Подготавливаю параметры...');
 
             const bgImg = await loadImage(backgroundImageInput.files[0]);
             const audioData = await readFileAsArrayBuffer(audioFileInput.files[0]);
@@ -272,6 +280,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 frameRate: 60
             };
 
+            console.log('[Main] Отправляю команду start воркеру');
             videoWorker.postMessage({ type: 'start', params });
         } catch (error) {
             console.error('Ошибка:', error);
