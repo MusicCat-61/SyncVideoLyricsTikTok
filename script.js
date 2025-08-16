@@ -382,8 +382,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 '-c:a', 'aac',
                 '-b:a', '192k',
                 '-shortest',
-                '-copyts',
-                '-start_at_zero',
                 'output.mp4'
             );
 
