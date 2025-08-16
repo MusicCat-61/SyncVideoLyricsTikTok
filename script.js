@@ -73,24 +73,24 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Инициализация WebWorker
     async function initWorker() {
         console.log('[Main] Инициализация воркера...');
+
+        // Если воркер уже существует, возвращаем его
         if (videoWorker) {
             console.log('[Main] Воркер уже существует');
-            return;
+            return videoWorker;
         }
 
+        // Создаем новый воркер
         videoWorker = new Worker('video-worker.js');
         console.log('[Main] Воркер создан');
 
-
         // Обработчик сообщений от воркера
-        videoWorker.onmessage = function(e) {
+        const messageHandler = function(e) {
+            console.log(`[Main] Получено сообщение от воркера: ${e.data.type}`);
+
             const { type, progress, error, blob } = e.data;
 
             switch (type) {
-                case 'ready':
-                    // Это сообщение теперь обрабатывается в Promise ниже
-                    break;
-
                 case 'progress':
                     progressBar.style.width = `${progress}%`;
                     progressText.textContent = `${progress}%`;
@@ -117,7 +117,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                     break;
 
                 case 'error':
-                    console.error('Ошибка в Worker:', error);
+                    console.error('[Main] Ошибка в Worker:', error);
                     alert('Ошибка генерации видео: ' + error);
                     downloadBtn.disabled = false;
                     downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
@@ -126,27 +126,59 @@ document.addEventListener('DOMContentLoaded', async function() {
             }
         };
 
-        // Ждём, когда воркер сообщит, что он готов к приёму FFmpeg
-        await new Promise(resolve => {
-            const handler = function(e) {
+        // Устанавливаем обработчик сообщений
+        videoWorker.onmessage = messageHandler;
+
+        // Ждем, когда воркер сообщит, что он готов к приёму FFmpeg
+        await new Promise((resolve, reject) => {
+            console.log('[Main] Ожидание готовности воркера...');
+
+            // Временный обработчик для готовности
+            const readyHandler = function(e) {
                 if (e.data.type === 'ready') {
-                    console.log('[Main] Воркер сообщил, что готов к приёму FFmpeg');
-                    videoWorker.removeEventListener('message', handler);
+                    console.log('[Main] Воркер готов к приёму FFmpeg');
+                    videoWorker.removeEventListener('message', readyHandler);
                     resolve();
+                } else if (e.data.type === 'error') {
+                    videoWorker.removeEventListener('message', readyHandler);
+                    reject(new Error(e.data.error));
                 }
             };
-            videoWorker.addEventListener('message', handler);
 
+            // Добавляем временный обработчик
+            videoWorker.addEventListener('message', readyHandler);
+
+            // Отправляем сообщение инициализации
             console.log('[Main] Отправляю воркеру сообщение ready');
             videoWorker.postMessage({ type: 'ready' });
         });
 
+        // Отправляем FFmpeg в воркер
         console.log('[Main] Отправляю FFmpeg в воркер', ffmpeg !== null);
         videoWorker.postMessage({
             type: 'init',
             ffmpeg: ffmpeg
         });
 
+        // Ждем подтверждения инициализации FFmpeg
+        await new Promise((resolve, reject) => {
+            console.log('[Main] Ожидание подтверждения инициализации FFmpeg...');
+
+            const initHandler = function(e) {
+                if (e.data.type === 'ready') {
+                    console.log('[Main] FFmpeg успешно инициализирован в воркере');
+                    videoWorker.removeEventListener('message', initHandler);
+                    resolve();
+                } else if (e.data.type === 'error') {
+                    videoWorker.removeEventListener('message', initHandler);
+                    reject(new Error(e.data.error));
+                }
+            };
+
+            videoWorker.addEventListener('message', initHandler);
+        });
+
+        console.log('[Main] Воркер полностью инициализирован');
         return videoWorker;
     }
 

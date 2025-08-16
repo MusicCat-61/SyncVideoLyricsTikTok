@@ -2,6 +2,8 @@
 let ffmpeg = null;
 let isInitialized = false;
 
+self.onmessage = handleMessage;
+
 self.onmessage = async function(e) {
     console.log(`[Worker] Получено сообщение типа: ${e.data.type}`, e.data);
 
@@ -142,7 +144,11 @@ self.onmessage = async function(e) {
                 break;
 
             default:
-                throw new Error(`Неизвестный тип сообщения: ${e.data.type}`);
+                console.warn(`[Worker] Получен неизвестный тип сообщения: ${e.data.type}`);
+                // Не отправляем ошибку для сообщений типа 'ready'
+                if (e.data.type !== 'ready') {
+                    throw new Error(`Неизвестный тип сообщения: ${e.data.type}`);
+                }
         }
     } catch (error) {
         console.error('[Worker] Ошибка:', error);
