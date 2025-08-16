@@ -32,8 +32,6 @@ const ffmpegLoading = new Promise(async (resolve, reject) => {
 
 window.ffmpegLoading = ffmpegLoading;
 
-
-
 document.addEventListener('DOMContentLoaded', async function() {
     // Добавим статус загрузки в интерфейс
     const statusElement = document.createElement('div');
@@ -83,9 +81,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     let fontName = 'sans-serif';
     let ffmpeg = null;
     let ffmpegLoaded = false;
-    let videoWorker = null;
 
-     try {
+    try {
         // Ждем загрузки FFmpeg
         await window.ffmpegLoading;
         statusElement.textContent = 'FFmpeg успешно загружен!';
@@ -106,61 +103,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    async function initWorker() {
-        console.log('[Main] Инициализация воркера...');
-
-        if (videoWorker) return videoWorker;
-
-        videoWorker = new Worker('video-worker.js');
-
-        return new Promise((resolve, reject) => {
-            const messageHandler = function(e) {
-                switch (e.data.type) {
-                    case 'ffmpeg_ready':
-                        console.log('[Main] FFmpeg успешно инициализирован в воркере');
-                        videoWorker.removeEventListener('message', messageHandler);
-                        resolve(videoWorker);
-                        break;
-
-
-                    case 'error':
-                        console.error('[Main] Ошибка в воркере:', e.data.error);
-                        videoWorker.removeEventListener('message', messageHandler);
-                        reject(new Error(e.data.error));
-                        break;
-
-                    case 'progress':
-                        progressBar.style.width = `${e.data.progress}%`;
-                        progressText.textContent = `${e.data.progress}%`;
-                        break;
-
-                    case 'complete':
-                        const blob = e.data.blob;
-                        const url = URL.createObjectURL(blob);
-                        const a = document.createElement('a');
-                        a.href = url;
-                        a.download = 'video.mp4';
-                        document.body.appendChild(a);
-                        a.click();
-                        setTimeout(() => {
-                            document.body.removeChild(a);
-                            URL.revokeObjectURL(url);
-                            downloadBtn.disabled = false;
-                            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
-                        }, 100);
-                        break;
-                }
-            };
-
-            videoWorker.addEventListener('message', messageHandler);
-
-            // Передаем уже загруженный FFmpeg в воркер
-            videoWorker.postMessage({
-                type: 'init',
-                ffmpeg: window.FFmpeg,
-                corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
-            });
-        });
+    // Генерация случайного имени файла
+    function generateRandomFilename(audioFile) {
+        const trackName = audioFile.name.replace(/\.[^/.]+$/, ""); // Удаляем расширение
+        const randomDigits = Math.floor(10000000 + Math.random() * 90000000); // 8 случайных цифр
+        return `video_${trackName}_${randomDigits}.mp4`;
     }
 
     // Переключение табов
@@ -268,16 +215,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         try {
             console.log('[Main] Начало процесса генерации');
 
-            // Инициализация воркера
-            await initWorker();
-            console.log('[Main] Воркер и FFmpeg готовы');
-            await new Promise(resolve => setTimeout(resolve, 100));
-
-            console.log('[Main] Подготавливаю параметры...');
-
+            // Подготавливаем параметры
             const bgImg = await loadImage(backgroundImageInput.files[0]);
             const audioData = await readFileAsArrayBuffer(audioFileInput.files[0]);
             const lyrics = parseLyrics(lyricsText.value);
+            const filename = generateRandomFilename(audioFileInput.files[0]);
 
             const params = {
                 bgImg: await getImageData(bgImg),
@@ -290,21 +232,166 @@ document.addEventListener('DOMContentLoaded', async function() {
                 fontName: fontName,
                 width: 720,
                 height: 1280,
-                frameRate: 60
+                frameRate: 60,
+                filename: filename
             };
 
-            console.log('[Main] Запускаю генерацию видео');
-            videoWorker.postMessage({
-                type: 'start',
-                params: params
-            });
+            // Запускаем генерацию видео
+            await generateVideo(params);
+
         } catch (error) {
             console.error('Ошибка:', error);
-            alert('Ошибка инициализации: ' + error.message);
+            alert('Ошибка генерации видео: ' + error.message);
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
         }
     });
 
-    // Функции
+    // Функция генерации видео
+    async function generateVideo(params) {
+        try {
+            // Загружаем фоновое изображение
+            console.log('[Main] Загрузка фонового изображения...');
+            const bgImg = await createImage(params.bgImg);
+
+            // Создаем canvas
+            const canvas = document.createElement('canvas');
+            canvas.width = params.width;
+            canvas.height = params.height;
+            const ctx = canvas.getContext('2d');
+            const frameCount = Math.ceil(params.audioDuration * params.frameRate);
+
+            // Очищаем предыдущие файлы
+            try {
+                ffmpeg.FS('unlink', 'audio.mp3');
+                for (let i = 0; i < frameCount; i++) {
+                    const filename = `frame${i.toString().padStart(5, '0')}.jpg`;
+                    try { ffmpeg.FS('unlink', filename); } catch {}
+                }
+            } catch (e) {}
+
+            // Обработка кадров
+            for (let i = 0; i < frameCount; i += 10) { // Уменьшаем batch size для лучшей отзывчивости
+                const batchEnd = Math.min(i + 10, frameCount);
+
+                for (let j = i; j < batchEnd; j++) {
+                    const time = j / params.frameRate;
+                    let currentText = getCurrentLyric(params.lyrics, time);
+
+                    // Рендеринг кадра
+                    ctx.clearRect(0, 0, params.width, params.height);
+                    ctx.drawImage(bgImg, 0, 0, params.width, params.height);
+
+                    if (currentText) {
+                        renderText(ctx, currentText, params);
+                    }
+
+                    // Сохранение кадра
+                    const blob = await new Promise(resolve =>
+                        canvas.toBlob(resolve, 'image/jpeg', 0.9)
+                    );
+                    const arrayBuffer = await blob.arrayBuffer();
+                    ffmpeg.FS('writeFile', `frame${j.toString().padStart(5, '0')}.jpg`,
+                        new Uint8Array(arrayBuffer));
+                }
+
+                // Обновление прогресса
+                const progress = Math.floor((batchEnd / frameCount) * 100);
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${progress}%`;
+                await new Promise(resolve => setTimeout(resolve, 0)); // Даем UI обновиться
+            }
+
+            // Запись аудио
+            console.log('[Main] Запись аудио...');
+            ffmpeg.FS('writeFile', 'audio.mp3', new Uint8Array(params.audioData));
+
+            // Создание видео
+            console.log('[Main] Создание видео...');
+            await ffmpeg.run(
+                '-f', 'image2',
+                '-i', 'frame%05d.jpg',
+                '-i', 'audio.mp3',
+                '-r', params.frameRate.toString(),
+                '-c:v', 'libx264',
+                '-preset', 'fast',
+                '-crf', '20',
+                '-pix_fmt', 'yuv420p',
+                '-c:a', 'aac',
+                '-b:a', '192k',
+                '-shortest',
+                'output.mp4'
+            );
+
+            // Скачивание результата
+            console.log('[Main] Видео создано, подготовка к скачиванию...');
+            const data = ffmpeg.FS('readFile', 'output.mp4');
+            const blob = new Blob([data.buffer], { type: 'video/mp4' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = params.filename;
+            document.body.appendChild(a);
+            a.click();
+
+            // Очистка
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+                downloadBtn.disabled = false;
+                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
+            }, 100);
+
+        } catch (error) {
+            console.error('[Main] Ошибка генерации видео:', error);
+            throw error;
+        }
+    }
+
+    // Вспомогательные функции
+    async function createImage(dataUrl) {
+        const img = new Image();
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+            img.src = dataUrl;
+        });
+        return img;
+    }
+
+    function getCurrentLyric(lyrics, time) {
+        for (let i = lyrics.length - 1; i >= 0; i--) {
+            if (lyrics[i].time <= time) {
+                return lyrics[i].text;
+            }
+        }
+        return '';
+    }
+
+    function renderText(ctx, text, params) {
+        ctx.fillStyle = params.textColor;
+        ctx.font = `${params.textSize}px '${params.fontName}'`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'bottom';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+        ctx.shadowBlur = 3;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+
+        const yPos = params.height - (params.height * (params.textPosition / 100));
+        const lines = text.split('\n');
+        const lineHeight = parseInt(params.textSize) * 1.2;
+
+        for (let k = 0; k < lines.length; k++) {
+            ctx.fillText(
+                lines[k],
+                params.width / 2,
+                yPos - (lines.length - k - 1) * lineHeight
+            );
+        }
+    }
+
+    // Остальные функции остаются без изменений
     function loadAudioFile(url) {
         if (audioContext) {
             audioContext.close();
