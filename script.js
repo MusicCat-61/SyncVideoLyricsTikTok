@@ -423,7 +423,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             const messageElement = document.createElement('div');
             messageElement.id = 'progress-message';
             messageElement.style.marginTop = '5px';
-            messageElement.style.fontSize = '0.9em';
+            messageElement.style.fontSize = '1.1em';
             messageElement.style.color = '#666';
             progressContainer.appendChild(messageElement);
         }
@@ -476,18 +476,18 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     function renderText(ctx, text, params) {
 
-        const scale = window.devicePixelRatio || 1; // Масштаб для HiDPI-экранов
-        ctx.scale(scale, scale); // Применяем масштаб
-
         ctx.fillStyle = params.textColor;
-        ctx.font = `${params.textSize * scale}px '${params.fontName}'`;
+
+        // Правильное указание шрифта с кавычками и без масштабирования
+        ctx.font = `${params.textSize}px '${params.fontName}'`;
+
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
 
-        // Вычисляем позицию и параметры текста
+        // Вычисляем позицию текста
         const yPos = params.height - (params.height * (params.textPosition / 100));
         const lines = wrapText(ctx, text, params.width * 0.9); // Перенос текста
-        const lineHeight = parseInt(params.textSize) * 1.2;
+        const lineHeight = params.textSize * 1.2;
 
         for (let k = 0; k < lines.length; k++) {
             // Обводка
@@ -495,17 +495,16 @@ document.addEventListener('DOMContentLoaded', async function() {
             ctx.lineWidth = params.strokeSize || 2;
             ctx.strokeText(
                 lines[k],
-                params.width / 2 / scale, // Учитываем масштаб
+                params.width / 2, // Без масштабирования
                 yPos - (lines.length - k - 1) * lineHeight
             );
 
             // Основной текст
             ctx.fillText(
                 lines[k],
-                params.width / 2 / scale, // Учитываем масштаб
+                params.width / 2, // Без масштабирования
                 yPos - (lines.length - k - 1) * lineHeight
             );
-
         }
     }
 
