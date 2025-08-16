@@ -380,6 +380,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                 '-c:a', 'aac',
                 '-b:a', '192k',
                 '-shortest',
+                '-copyts',
+                '-start_at_zero',
                 'output.mp4'
             );
 
@@ -451,34 +453,59 @@ document.addEventListener('DOMContentLoaded', async function() {
         return '';
     }
 
+
+    function wrapText(ctx, text, maxWidth) {
+        const words = text.split(' ');
+        const lines = [];
+        let currentLine = words[0];
+
+        for (let i = 1; i < words.length; i++) {
+            const word = words[i];
+            const width = ctx.measureText(currentLine + ' ' + word).width;
+            if (width < maxWidth) {
+                currentLine += ' ' + word;
+            } else {
+                lines.push(currentLine);
+                currentLine = word;
+            }
+        }
+        lines.push(currentLine);
+        return lines;
+    }
+
+
     function renderText(ctx, text, params) {
 
+        const scale = window.devicePixelRatio || 1; // Масштаб для HiDPI-экранов
+        ctx.scale(scale, scale); // Применяем масштаб
+
         ctx.fillStyle = params.textColor;
-        ctx.font = `${params.textSize}px '${params.fontName}'`;
+        ctx.font = `${params.textSize * scale}px '${params.fontName}'`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
 
         // Вычисляем позицию и параметры текста
         const yPos = params.height - (params.height * (params.textPosition / 100));
-        const lines = text.split('\n');
+        const lines = wrapText(ctx, text, params.width * 0.9); // Перенос текста
         const lineHeight = parseInt(params.textSize) * 1.2;
 
         for (let k = 0; k < lines.length; k++) {
-            // Сначала рисуем обводку
+            // Обводка
             ctx.strokeStyle = params.strokeColor || '#000000';
             ctx.lineWidth = params.strokeSize || 2;
             ctx.strokeText(
                 lines[k],
-                params.width / 2,
+                params.width / 2 / scale, // Учитываем масштаб
                 yPos - (lines.length - k - 1) * lineHeight
             );
 
-            // Затем основной текст
+            // Основной текст
             ctx.fillText(
                 lines[k],
-                params.width / 2,
+                params.width / 2 / scale, // Учитываем масштаб
                 yPos - (lines.length - k - 1) * lineHeight
             );
+
         }
     }
 
