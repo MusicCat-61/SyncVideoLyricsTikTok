@@ -458,22 +458,20 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     function renderText(ctx, text, params) {
 
-        ctx.strokeStyle = params.strokeColor || '#000000';
-        ctx.lineWidth = params.strokeSize || 2;
-        ctx.strokeText(text, params.width / 2, yPos - (lines.length - k - 1) * lineHeight);
-
-        // Основной текст
         ctx.fillStyle = params.textColor;
         ctx.font = `${params.textSize}px '${params.fontName}'`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'bottom';
 
+        // Вычисляем позицию и параметры текста
         const yPos = params.height - (params.height * (params.textPosition / 100));
         const lines = text.split('\n');
         const lineHeight = parseInt(params.textSize) * 1.2;
 
         for (let k = 0; k < lines.length; k++) {
             // Сначала рисуем обводку
+            ctx.strokeStyle = params.strokeColor || '#000000';
+            ctx.lineWidth = params.strokeSize || 2;
             ctx.strokeText(
                 lines[k],
                 params.width / 2,
