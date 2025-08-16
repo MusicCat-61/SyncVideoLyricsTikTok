@@ -1,4 +1,14 @@
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
+    // Добавим статус загрузки в интерфейс
+    const statusElement = document.createElement('div');
+    statusElement.id = 'ffmpeg-status';
+    statusElement.style.padding = '10px';
+    statusElement.style.backgroundColor = '#f8f9fa';
+    statusElement.style.borderRadius = '4px';
+    statusElement.style.marginBottom = '10px';
+    statusElement.textContent = 'Загрузка FFmpeg...';
+    document.querySelector('.editor-panel').prepend(statusElement);
+
     // Элементы интерфейса
     const tabs = document.querySelectorAll('.tab');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -38,43 +48,25 @@ document.addEventListener('DOMContentLoaded', function() {
     let ffmpeg = null;
     let ffmpegLoaded = false;
 
-    // Инициализация FFmpeg
-    async function initFFmpeg() {
-        if (ffmpeg) return;
-
-        // Проверяем, доступен ли FFmpeg
-        if (typeof createFFmpeg === 'undefined') {
-            // Загружаем FFmpeg с CDN если не найден локально
-            await loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js');
-
-            if (typeof createFFmpeg === 'undefined') {
-                throw new Error('FFmpeg не удалось загрузить');
-            }
-        }
-
-        ffmpeg = createFFmpeg({
-            log: true,
-            corePath: 'https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js'
-        });
-
-        try {
-            await ffmpeg.load();
-            ffmpegLoaded = true;
-        } catch (error) {
-            console.error('Ошибка загрузки FFmpeg:', error);
-            alert('Ошибка загрузки FFmpeg. Проверьте консоль для подробностей.');
-        }
-    }
-
-    // Функция для динамической загрузки скриптов
-    function loadScript(src) {
-        return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = reject;
-            document.head.appendChild(script);
-        });
+    try {
+        // Ждем загрузки FFmpeg
+        await window.ffmpegLoading;
+        statusElement.textContent = 'FFmpeg успешно загружен!';
+        statusElement.style.color = 'green';
+        
+        // Теперь можно безопасно использовать window.ffmpeg
+        ffmpeg = window.ffmpeg;
+        ffmpegLoaded = true;
+        
+        // Через 3 секунды скрываем статус
+        setTimeout(() => {
+            statusElement.style.display = 'none';
+        }, 3000);
+    } catch (error) {
+        console.error('Ошибка загрузки FFmpeg:', error);
+        statusElement.textContent = 'Ошибка загрузки FFmpeg!';
+        statusElement.style.color = 'red';
+        return;
     }
 
     // Переключение табов
@@ -153,8 +145,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Скачивание видео
     downloadBtn.addEventListener('click', async function() {
-        if (!ffmpegLoaded) {
-            alert('FFmpeg еще не загружен. Пожалуйста, подождите...');
+        if (!window.ffmpeg || !ffmpegLoaded) {
+            alert('FFmpeg еще не загружен. Подождите несколько секунд...');
             return;
         }
 
