@@ -339,7 +339,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             async function processFrameBatch(start, end) {
                 for (let j = start; j < end; j++) {
-                    const exactTime = j / params.frameRate;
+                    const exactTime = (j * params.audioDuration) / frameCount;
                     let currentText = getCurrentLyric(params.lyrics, exactTime);
 
                     ctx.clearRect(0, 0, params.width, params.height);
@@ -375,7 +375,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 '-c:v', 'libx264',
                 '-preset', 'ultrafast', // Быстрее, чем 'fast'
                 '-crf', '23', // Немного лучше качество
-                '-vsync', 'vfr', // Переменный FPS для точности
+                '-vsync', 'passthrough', // Переменный FPS для точности
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
                 '-b:a', '192k',
