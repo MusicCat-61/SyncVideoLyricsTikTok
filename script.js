@@ -1,17 +1,21 @@
 const ffmpegLoading = new Promise(async (resolve) => {
-    const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
-    const ffmpeg = createFFmpeg({
-        log: true,
-        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-    });
-    await ffmpeg.load();
-    window.ffmpeg = ffmpeg;
-    resolve();
+    try {
+        // Используем глобальный объект FFmpeg из CDN
+        const { createFFmpeg } = FFmpeg; // Используем глобальный объект вместо импорта
+        const ffmpeg = createFFmpeg({
+            log: true,
+            corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+        });
+        await ffmpeg.load();
+        window.ffmpeg = ffmpeg;
+        resolve();
+    } catch (error) {
+        console.error('Ошибка загрузки FFmpeg:', error);
+        throw error;
+    }
 });
 
-// Сохраняем ссылку на промис для использования в обработчике
 window.ffmpegLoading = ffmpegLoading;
-
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Добавим статус загрузки в интерфейс
