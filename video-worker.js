@@ -2,19 +2,26 @@
 let ffmpeg = null;
 
 self.onmessage = async function(e) {
-    if (e.data.type === 'init') {
-        // Получаем FFmpeg из основного потока
-        ffmpeg = e.data.ffmpeg;
-        self.postMessage({ type: 'ready' });
+   if (e.data.type === 'init') {
+        try {
+            ffmpeg = e.data.ffmpeg;
+            // Добавляем проверку загрузки
+            if (!ffmpeg.isLoaded()) {
+                await ffmpeg.load();
+            }
+            self.postMessage({ type: 'ready' });
+        } catch (error) {
+            self.postMessage({ type: 'error', error: 'Ошибка инициализации FFmpeg: ' + error.message });
+        }
         return;
     }
 
     if (e.data.type === 'start') {
         try {
-            if (!ffmpeg) {
-            self.postMessage({ type: 'error', error: 'FFmpeg не инициализирован в воркере' });
-            return;
-        }
+            if (!ffmpeg || !ffmpeg.isLoaded()) {
+                self.postMessage({ type: 'error', error: 'FFmpeg не готов к работе' });
+                return;
+            }
 
             const params = e.data.params;
             const { width, height, frameRate } = params;
@@ -22,6 +29,7 @@ self.onmessage = async function(e) {
             if (!ffmpeg.isLoaded()) {
                 await ffmpeg.load();
             }
+            console.log('Получил FFmpeg в воркере', ffmpeg !== null);
 
             // Загружаем фоновое изображение
             const bgImg = await createImageBitmap(await (await fetch(params.bgImg)).blob());

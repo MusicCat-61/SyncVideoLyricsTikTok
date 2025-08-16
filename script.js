@@ -132,6 +132,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             // Инициируем воркер
             videoWorker.postMessage({ type: 'ready' });
+
         });
 
         // Теперь безопасно отправляем FFmpeg
@@ -139,6 +140,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             type: 'init',
             ffmpeg: ffmpeg
         });
+        console.log('Отправляю FFmpeg в воркер', ffmpeg !== null);
 
         return videoWorker;
     }
@@ -246,7 +248,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         progressText.textContent = '0%';
 
         try {
-            initWorker();
+
+            await initWorker();
+
+            // Добавляем небольшую задержку для гарантии
+            await new Promise(resolve => setTimeout(resolve, 100));
 
             const bgImg = await loadImage(backgroundImageInput.files[0]);
             const audioData = await readFileAsArrayBuffer(audioFileInput.files[0]);
@@ -268,11 +274,8 @@ document.addEventListener('DOMContentLoaded', async function() {
 
             videoWorker.postMessage({ type: 'start', params });
         } catch (error) {
-            console.error('Ошибка генерации видео:', error);
-            alert('Ошибка генерации видео. Проверьте консоль для подробностей.');
-            downloadBtn.disabled = false;
-            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
-            progressContainer.style.display = 'none';
+            console.error('Ошибка:', error);
+            alert('Ошибка инициализации: ' + error.message);
         }
     });
 
