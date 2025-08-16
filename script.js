@@ -1,18 +1,17 @@
 const ffmpegLoading = new Promise(async (resolve) => {
-    try {
-        // Используем глобальный объект FFmpeg из CDN
-        const { createFFmpeg } = FFmpeg; // Используем глобальный объект вместо импорта
-        const ffmpeg = createFFmpeg({
-            log: true,
-            corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-        });
-        await ffmpeg.load();
-        window.ffmpeg = ffmpeg;
-        resolve();
-    } catch (error) {
-        console.error('Ошибка загрузки FFmpeg:', error);
-        throw error;
-    }
+    const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
+    const ffmpeg = createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
+    await ffmpeg.load();
+    // Сохраняем только необходимые методы, а не весь объект
+    window.ffmpeg = {
+        FS: ffmpeg.FS.bind(ffmpeg),
+        run: ffmpeg.run.bind(ffmpeg),
+        isLoaded: () => true
+    };
+    resolve();
 });
 
 window.ffmpegLoading = ffmpegLoading;
@@ -139,7 +138,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Передаем уже загруженный FFmpeg в воркер
             videoWorker.postMessage({
                 type: 'init',
-                ffmpeg: ffmpeg
+
             });
         });
     }

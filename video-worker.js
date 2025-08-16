@@ -2,6 +2,16 @@
 let ffmpeg = null;
 let isInitialized = false;
 
+async function loadFFmpeg() {
+    const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
+    ffmpeg = createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
+    await ffmpeg.load();
+    return ffmpeg;
+}
+
 self.onmessage = async function(e) {
     console.log(`[Worker] Получено сообщение типа: ${e.data.type}`);
 
@@ -9,17 +19,11 @@ self.onmessage = async function(e) {
         switch (e.data.type) {
             case 'init':
                 console.log('[Worker] Инициализация FFmpeg...');
-
-                // Получаем уже загруженный FFmpeg из main thread
-                ffmpeg = e.data.ffmpeg;
-
-                if (!ffmpeg || !ffmpeg.isLoaded()) {
-                    throw new Error('FFmpeg не был корректно передан из основного потока');
-                }
-
+                ffmpeg = await loadFFmpeg();
                 isInitialized = true;
                 self.postMessage({ type: 'ffmpeg_ready' });
                 break;
+
 
             case 'start':
                 console.log('[Worker] Получена команда start');
