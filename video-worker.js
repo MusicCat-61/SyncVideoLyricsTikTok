@@ -6,33 +6,19 @@ const FFMPEG_VERSION = '0.11.6';
 const CORE_VERSION = '0.11.0';
 
 
-async function loadFFmpeg() {
-    try {
-        // Используем importScripts для загрузки в воркере
-        importScripts(`https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/ffmpeg.min.js`);
-
-        const { createFFmpeg } = window.FFmpeg;
-        ffmpeg = createFFmpeg({
-            log: true,
-            corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
-        });
-
-        await ffmpeg.load();
-        return ffmpeg;
-    } catch (error) {
-        console.error('[Worker] Ошибка загрузки FFmpeg:', error);
-        throw error;
-    }
-}
-
 self.onmessage = async function(e) {
     console.log(`[Worker] Получено сообщение типа: ${e.data.type}`);
 
     try {
         switch (e.data.type) {
             case 'init':
-                console.log('[Worker] Инициализация FFmpeg...');
-                ffmpeg = await loadFFmpeg();
+                const { createFFmpeg } = e.data.ffmpeg;
+                ffmpeg = createFFmpeg({
+                    log: true,
+                    corePath: e.data.corePath
+                });
+
+                await ffmpeg.load();
                 isInitialized = true;
                 self.postMessage({ type: 'ffmpeg_ready' });
                 break;

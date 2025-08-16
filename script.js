@@ -4,38 +4,26 @@ const CORE_VERSION = '0.11.0';
 
 const ffmpegLoading = new Promise(async (resolve, reject) => {
     try {
-        // Создаем элемент script для загрузки ffmpeg
-        const script = document.createElement('script');
-        script.src = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/ffmpeg.min.js`;
-        script.onload = async () => {
-            try {
-                // Теперь ffmpeg доступен через window.FFmpeg
-                const { createFFmpeg } = window.FFmpeg;
-                const ffmpeg = createFFmpeg({
-                    log: true,
-                    corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
-                });
+        // Проверяем, что FFmpeg загружен
+        if (!window.FFmpeg) {
+            throw new Error('FFmpeg не загружен');
+        }
 
-                await ffmpeg.load();
+        const { createFFmpeg } = window.FFmpeg;
+        const ffmpeg = createFFmpeg({
+            log: true,
+            corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
+        });
 
-                window.ffmpeg = {
-                    FS: ffmpeg.FS.bind(ffmpeg),
-                    run: ffmpeg.run.bind(ffmpeg),
-                    isLoaded: () => true
-                };
+        await ffmpeg.load();
 
-                resolve();
-            } catch (error) {
-                console.error('Ошибка инициализации FFmpeg:', error);
-                reject(error);
-            }
+        window.ffmpeg = {
+            FS: ffmpeg.FS.bind(ffmpeg),
+            run: ffmpeg.run.bind(ffmpeg),
+            isLoaded: () => true
         };
-        script.onerror = () => {
-            const error = new Error('Не удалось загрузить FFmpeg');
-            console.error(error);
-            reject(error);
-        };
-        document.head.appendChild(script);
+
+        resolve();
     } catch (error) {
         console.error('Ошибка загрузки FFmpeg:', error);
         reject(error);
@@ -43,6 +31,7 @@ const ffmpegLoading = new Promise(async (resolve, reject) => {
 });
 
 window.ffmpegLoading = ffmpegLoading;
+
 
 
 document.addEventListener('DOMContentLoaded', async function() {
@@ -133,6 +122,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                         resolve(videoWorker);
                         break;
 
+
                     case 'error':
                         console.error('[Main] Ошибка в воркере:', e.data.error);
                         videoWorker.removeEventListener('message', messageHandler);
@@ -167,7 +157,8 @@ document.addEventListener('DOMContentLoaded', async function() {
             // Передаем уже загруженный FFmpeg в воркер
             videoWorker.postMessage({
                 type: 'init',
-
+                ffmpeg: window.FFmpeg,
+                corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
             });
         });
     }
