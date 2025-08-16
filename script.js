@@ -368,7 +368,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             ffmpeg.FS('writeFile', 'audio.mp3', new Uint8Array(params.audioData));
 
             // Этап 3: Создание видео
-            updateProgress(90, 'Создание видео... (это может занять несколько минут)');
+            updateProgress(90, 'Создание видео... (это может занять несколько минут, зависит от мощности устройства)');
             await ffmpeg.run(
                 '-f', 'image2',
                 '-i', 'frame%05d.jpg',
