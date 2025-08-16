@@ -11,6 +11,7 @@ async function initializeFFmpeg() {
     ffmpeg = createFFmpeg({
       log: true,
       corePath: '/ffmpeg-core.js',
+      workerPath:'/ffmpeg-core.worker.js',
       mainName: 'main',
       MEMFS: 2048
     });
