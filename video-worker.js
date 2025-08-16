@@ -9,6 +9,12 @@ self.onmessage = async function(e) {
 
     try {
         switch (e.data.type) {
+
+            case 'ready':
+                // Отвечаем, что воркер готов к инициализации
+                console.log('[Worker] Подтверждаю готовность к инициализации');
+                self.postMessage({ type: 'worker_ready' });
+                break;
             case 'init':
                 console.log('[Worker] Начало инициализации FFmpeg');
 
@@ -144,11 +150,7 @@ self.onmessage = async function(e) {
                 break;
 
             default:
-                console.warn(`[Worker] Получен неизвестный тип сообщения: ${e.data.type}`);
-                // Не отправляем ошибку для сообщений типа 'ready'
-                if (e.data.type !== 'ready') {
-                    throw new Error(`Неизвестный тип сообщения: ${e.data.type}`);
-                }
+                console.warn(`Неизвестный тип сообщения: ${e.data.type}`);
         }
     } catch (error) {
         console.error('[Worker] Ошибка:', error);

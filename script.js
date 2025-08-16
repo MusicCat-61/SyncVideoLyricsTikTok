@@ -72,114 +72,41 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Инициализация WebWorker
     async function initWorker() {
+
         console.log('[Main] Инициализация воркера...');
 
-        // Если воркер уже существует, возвращаем его
-        if (videoWorker) {
-            console.log('[Main] Воркер уже существует');
-            return videoWorker;
-        }
+        if (videoWorker) return videoWorker;
 
-        // Создаем новый воркер
         videoWorker = new Worker('video-worker.js');
-        console.log('[Main] Воркер создан');
 
-        // Обработчик сообщений от воркера
-        const messageHandler = function(e) {
-            console.log(`[Main] Получено сообщение от воркера: ${e.data.type}`);
+        return new Promise((resolve, reject) => {
+            videoWorker.onmessage = function(e) {
+                switch (e.data.type) {
+                    case 'worker_ready':
+                        console.log('[Main] Воркер готов к приёму FFmpeg');
+                        // Отправляем FFmpeg
+                        videoWorker.postMessage({
+                            type: 'init',
+                            ffmpeg: ffmpeg
+                        });
+                        break;
 
-            const { type, progress, error, blob } = e.data;
+                    case 'ffmpeg_ready':
+                        console.log('[Main] FFmpeg успешно инициализирован в воркере');
+                        resolve(videoWorker);
+                        break;
 
-            switch (type) {
-                case 'progress':
-                    progressBar.style.width = `${progress}%`;
-                    progressText.textContent = `${progress}%`;
-                    break;
-
-                case 'complete':
-                    const url = URL.createObjectURL(blob);
-                    const audioFileName = audioFileInfo.textContent
-                        ? audioFileInfo.textContent.replace(/\.[^/.]+$/, "").replace(/[^\w\-]/g, "_")
-                        : "video";
-                    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
-
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `${audioFileName}_${randomDigits}.mp4`;
-                    document.body.appendChild(a);
-                    a.click();
-                    document.body.removeChild(a);
-
-                    setTimeout(() => URL.revokeObjectURL(url), 100);
-                    downloadBtn.disabled = false;
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
-                    progressContainer.style.display = 'none';
-                    break;
-
-                case 'error':
-                    console.error('[Main] Ошибка в Worker:', error);
-                    alert('Ошибка генерации видео: ' + error);
-                    downloadBtn.disabled = false;
-                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
-                    progressContainer.style.display = 'none';
-                    break;
-            }
-        };
-
-        // Устанавливаем обработчик сообщений
-        videoWorker.onmessage = messageHandler;
-
-        // Ждем, когда воркер сообщит, что он готов к приёму FFmpeg
-        await new Promise((resolve, reject) => {
-            console.log('[Main] Ожидание готовности воркера...');
-
-            // Временный обработчик для готовности
-            const readyHandler = function(e) {
-                if (e.data.type === 'ready') {
-                    console.log('[Main] Воркер готов к приёму FFmpeg');
-                    videoWorker.removeEventListener('message', readyHandler);
-                    resolve();
-                } else if (e.data.type === 'error') {
-                    videoWorker.removeEventListener('message', readyHandler);
-                    reject(new Error(e.data.error));
+                    case 'error':
+                        console.error('[Main] Ошибка в воркере:', e.data.error);
+                        reject(new Error(e.data.error));
+                        break;
                 }
             };
 
-            // Добавляем временный обработчик
-            videoWorker.addEventListener('message', readyHandler);
-
-            // Отправляем сообщение инициализации
-            console.log('[Main] Отправляю воркеру сообщение ready');
+            // Инициируем процесс
+            console.log('[Main] Отправляю запрос готовности воркеру');
             videoWorker.postMessage({ type: 'ready' });
         });
-
-        // Отправляем FFmpeg в воркер
-        console.log('[Main] Отправляю FFmpeg в воркер', ffmpeg !== null);
-        videoWorker.postMessage({
-            type: 'init',
-            ffmpeg: ffmpeg
-        });
-
-        // Ждем подтверждения инициализации FFmpeg
-        await new Promise((resolve, reject) => {
-            console.log('[Main] Ожидание подтверждения инициализации FFmpeg...');
-
-            const initHandler = function(e) {
-                if (e.data.type === 'ready') {
-                    console.log('[Main] FFmpeg успешно инициализирован в воркере');
-                    videoWorker.removeEventListener('message', initHandler);
-                    resolve();
-                } else if (e.data.type === 'error') {
-                    videoWorker.removeEventListener('message', initHandler);
-                    reject(new Error(e.data.error));
-                }
-            };
-
-            videoWorker.addEventListener('message', initHandler);
-        });
-
-        console.log('[Main] Воркер полностью инициализирован');
-        return videoWorker;
     }
 
     // Переключение табов
@@ -285,11 +212,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         progressText.textContent = '0%';
 
         try {
+            console.log('[Main] Начало процесса генерации');
 
-            console.log('[Main] Инициализация воркера...');
+            // Инициализация воркера
             await initWorker();
-
-            console.log('[Main] Воркер инициализирован...');
+            console.log('[Main] Воркер и FFmpeg готовы');
             await new Promise(resolve => setTimeout(resolve, 100));
 
             console.log('[Main] Подготавливаю параметры...');
@@ -312,8 +239,11 @@ document.addEventListener('DOMContentLoaded', async function() {
                 frameRate: 60
             };
 
-            console.log('[Main] Отправляю команду start воркеру');
-            videoWorker.postMessage({ type: 'start', params });
+            console.log('[Main] Запускаю генерацию видео');
+            videoWorker.postMessage({
+                type: 'start',
+                params: params
+            });
         } catch (error) {
             console.error('Ошибка:', error);
             alert('Ошибка инициализации: ' + error.message);
