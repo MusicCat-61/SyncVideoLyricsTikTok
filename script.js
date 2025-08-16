@@ -1,479 +1,520 @@
-// Элементы интерфейса
-const audioFileInput = document.getElementById('audio-file');
-const audioBtn = document.getElementById('audio-btn');
-const audioName = document.getElementById('audio-name');
-const bgImageInput = document.getElementById('bg-image');
-const bgBtn = document.getElementById('bg-btn');
-const bgName = document.getElementById('bg-name');
-const fontFileInput = document.getElementById('font-file');
-const fontBtn = document.getElementById('font-btn');
-const fontName = document.getElementById('font-name');
-const lyricsInput = document.getElementById('lyrics-input');
-const textColor = document.getElementById('text-color');
-const colorPreview = document.getElementById('color-preview');
-const fontSize = document.getElementById('font-size');
-const fontSizeValue = document.getElementById('font-size-value');
-const textShadow = document.getElementById('text-shadow');
-const alignBtns = document.querySelectorAll('.align-btn');
-const playBtn = document.getElementById('play-btn');
-const pauseBtn = document.getElementById('pause-btn');
-const exportBtn = document.getElementById('export-btn');
-const videoPreview = document.getElementById('video-preview');
-const lyricsContainer = document.getElementById('lyrics-container');
-const tabBtns = document.querySelectorAll('.tab-btn');
-const tabContents = document.querySelectorAll('.tab-content');
+document.addEventListener('DOMContentLoaded', function() {
+    // Элементы интерфейса
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    const fontFileInput = document.getElementById('font-file');
+    const fontFileInfo = document.getElementById('font-file-info');
+    const backgroundImageInput = document.getElementById('background-image');
+    const backgroundImageInfo = document.getElementById('background-image-info');
+    const audioFileInput = document.getElementById('audio-file');
+    const audioFileInfo = document.getElementById('audio-file-info');
+    const lyricsText = document.getElementById('lyrics-text');
+    const textColor = document.getElementById('text-color');
+    const textColorValue = document.getElementById('text-color-value');
+    const textSize = document.getElementById('text-size');
+    const textSizeValue = document.getElementById('text-size-value');
+    const textPosition = document.getElementById('text-position');
+    const textPositionValue = document.getElementById('text-position-value');
+    const downloadBtn = document.getElementById('download-btn');
+    const playBtn = document.getElementById('play-btn');
+    const stopBtn = document.getElementById('stop-btn');
+    const previewBackground = document.getElementById('preview-background');
+    const previewText = document.getElementById('preview-text');
+    const progressContainer = document.getElementById('progress-container');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
 
-// Аудио элементы
-let audioContext;
-let audioBuffer;
-let audioSource;
-let isPlaying = false;
-let startTime;
-let lyrics = [];
-let currentLyricIndex = 0;
-let animationFrameId;
-let bgImageUrl = '';
-let fontUrl = '';
+    // Переменные состояния
+    let audioContext;
+    let audioBuffer;
+    let audioSource;
+    let isPlaying = false;
+    let startTime;
+    let lyrics = [];
+    let animationFrameId;
+    let backgroundImageUrl = '';
+    let audioFileUrl = '';
+    let fontName = 'sans-serif';
+    let ffmpeg = null;
+    let ffmpegLoaded = false;
 
-// Инициализация
-document.addEventListener('DOMContentLoaded', () => {
-    // Установка обработчиков событий
-    audioBtn.addEventListener('click', () => audioFileInput.click());
-    audioFileInput.addEventListener('change', handleAudioFile);
+    // Инициализация FFmpeg
+    async function initFFmpeg() {
+        if (ffmpeg) return;
 
-    bgBtn.addEventListener('click', () => bgImageInput.click());
-    bgImageInput.addEventListener('change', handleBgImage);
+        // Проверяем, доступен ли FFmpeg
+        if (typeof createFFmpeg === 'undefined') {
+            // Загружаем FFmpeg с CDN если не найден локально
+            await loadScript('https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js');
 
-    fontBtn.addEventListener('click', () => fontFileInput.click());
-    fontFileInput.addEventListener('change', handleFontFile);
+            if (typeof createFFmpeg === 'undefined') {
+                throw new Error('FFmpeg не удалось загрузить');
+            }
+        }
 
-    textColor.addEventListener('input', updateTextStyle);
-    fontSize.addEventListener('input', updateFontSize);
-    textShadow.addEventListener('change', updateTextStyle);
-    alignBtns.forEach(btn => btn.addEventListener('click', handleAlignBtn));
+        ffmpeg = createFFmpeg({
+            log: true,
+            corePath: 'https://unpkg.com/@ffmpeg/core@0.10.0/dist/ffmpeg-core.js'
+        });
 
-    playBtn.addEventListener('click', playAudio);
-    pauseBtn.addEventListener('click', pauseAudio);
-    exportBtn.addEventListener('click', exportVideo);
+        try {
+            await ffmpeg.load();
+            ffmpegLoaded = true;
+        } catch (error) {
+            console.error('Ошибка загрузки FFmpeg:', error);
+            alert('Ошибка загрузки FFmpeg. Проверьте консоль для подробностей.');
+        }
+    }
 
-    // Табы
-    tabBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
-            const tabId = btn.getAttribute('data-tab');
-            switchTab(tabId);
+    // Функция для динамической загрузки скриптов
+    function loadScript(src) {
+        return new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = src;
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+    }
+
+    // Переключение табов
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tabContents.forEach(c => c.classList.remove('active'));
+
+            tab.classList.add('active');
+            document.getElementById(`${tab.dataset.tab}-tab`).classList.add('active');
         });
     });
 
-    // Обновление предпросмотра цвета
-    colorPreview.style.backgroundColor = textColor.value;
-    textColor.addEventListener('input', () => {
-        colorPreview.style.backgroundColor = textColor.value;
+    // Загрузка фонового изображения
+    backgroundImageInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            backgroundImageInfo.textContent = file.name;
+            backgroundImageUrl = URL.createObjectURL(file);
+            previewBackground.src = backgroundImageUrl;
+        }
     });
 
-    // Обновление размера шрифта
-    fontSize.addEventListener('input', () => {
-        fontSizeValue.textContent = fontSize.value;
-        updateTextStyle();
+    // Загрузка шрифта
+    fontFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            fontFileInfo.textContent = file.name;
+            const fontUrl = URL.createObjectURL(file);
+            fontName = file.name.replace(/\.[^/.]+$/, "");
+
+            const fontFace = new FontFace(fontName, `url(${fontUrl})`);
+            fontFace.load().then((loadedFace) => {
+                document.fonts.add(loadedFace);
+                previewText.style.fontFamily = `'${fontName}', sans-serif`;
+            }).catch(error => {
+                console.error('Ошибка загрузки шрифта:', error);
+                alert('Ошибка загрузки шрифта');
+            });
+        }
     });
-});
 
-// Обработчики событий
-function handleAudioFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
+    // Загрузка аудио файла
+    audioFileInput.addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            audioFileInfo.textContent = file.name;
+            audioFileUrl = URL.createObjectURL(file);
+            loadAudioFile(audioFileUrl);
+        }
+    });
 
-    audioName.textContent = file.name;
+    // Настройки текста
+    textColor.addEventListener('input', function() {
+        const color = this.value;
+        const colorName = getColorName(color);
+        textColorValue.textContent = `${colorName} (${color.toUpperCase()})`;
+        previewText.style.color = color;
+    });
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const audioData = e.target.result;
+    textSize.addEventListener('input', function() {
+        const size = this.value;
+        textSizeValue.textContent = size;
+        previewText.style.fontSize = `${size}px`;
+    });
+
+    textPosition.addEventListener('input', function() {
+        const position = this.value;
+        textPositionValue.textContent = position;
+        previewText.style.bottom = `${position}%`;
+    });
+
+    // Воспроизведение предпросмотра
+    playBtn.addEventListener('click', startPreview);
+    stopBtn.addEventListener('click', stopPreview);
+
+    // Скачивание видео
+    downloadBtn.addEventListener('click', async function() {
+        if (!ffmpegLoaded) {
+            alert('FFmpeg еще не загружен. Пожалуйста, подождите...');
+            return;
+        }
+
+        if (!backgroundImageInput.files[0]) {
+            alert('Пожалуйста, выберите фоновое изображение');
+            return;
+        }
+
+        if (!audioFileInput.files[0]) {
+            alert('Пожалуйста, выберите аудио файл');
+            return;
+        }
+
+        if (!lyricsText.value.trim()) {
+            alert('Пожалуйста, добавьте текст с таймкодами');
+            return;
+        }
+
+        downloadBtn.disabled = true;
+        downloadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Генерация видео...';
+
+        try {
+            await generateVideo();
+        } catch (error) {
+            console.error('Ошибка генерации видео:', error);
+            alert('Ошибка генерации видео. Проверьте консоль для подробностей.');
+        } finally {
+            downloadBtn.disabled = false;
+            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
+        }
+    });
+
+    // Функции
+    function loadAudioFile(url) {
+        if (audioContext) {
+            audioContext.close();
+        }
 
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-        audioContext.decodeAudioData(audioData.slice(0))
+        fetch(url)
+            .then(response => response.arrayBuffer())
+            .then(arrayBuffer => audioContext.decodeAudioData(arrayBuffer))
             .then(buffer => {
                 audioBuffer = buffer;
-                console.log('Аудио загружено');
             })
-            .catch(err => {
-                console.error('Ошибка загрузки аудио:', err);
+            .catch(error => {
+                console.error('Ошибка загрузки аудио:', error);
                 alert('Ошибка загрузки аудио файла');
             });
-    };
-    reader.readAsArrayBuffer(file);
-}
-
-function handleBgImage(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    bgName.textContent = file.name;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        bgImageUrl = e.target.result;
-        videoPreview.style.backgroundImage = `url(${bgImageUrl})`;
-    };
-    reader.readAsDataURL(file);
-}
-
-function handleFontFile(e) {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    fontName.textContent = file.name;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        fontUrl = e.target.result;
-        const font = new FontFace('CustomFont', `url(${fontUrl})`);
-        font.load().then(loadedFont => {
-            document.fonts.add(loadedFont);
-            updateTextStyle();
-        }).catch(err => {
-            console.error('Ошибка загрузки шрифта:', err);
-            alert('Ошибка загрузки шрифта');
-        });
-    };
-    reader.readAsDataURL(file);
-}
-
-function handleAlignBtn(e) {
-    const align = e.currentTarget.getAttribute('data-align');
-    lyricsContainer.style.textAlign = align;
-
-    alignBtns.forEach(btn => {
-        btn.classList.remove('active-align');
-    });
-
-    e.currentTarget.classList.add('active-align');
-}
-
-function parseLyrics(text) {
-    const lines = text.split('\n');
-    const parsed = [];
-
-    for (const line of lines) {
-        if (!line.trim()) continue;
-
-        const match = line.match(/^\[(\d+):(\d+)\.(\d+)\](.*)/);
-        if (match) {
-            const minutes = parseInt(match[1]);
-            const seconds = parseInt(match[2]);
-            const milliseconds = parseInt(match[3]);
-            const text = match[4].trim();
-
-            const time = minutes * 60 + seconds + milliseconds / 1000;
-            parsed.push({ time, text });
-        }
     }
 
-    parsed.sort((a, b) => a.time - b.time);
-    return parsed;
-}
+    function parseLyrics(text) {
+        const lines = text.split('\n');
+        const result = [];
 
-function updateTextStyle() {
-    const lyricLines = document.querySelectorAll('.lyric-line');
-    lyricLines.forEach(line => {
-        line.style.color = textColor.value;
-        line.style.fontSize = `${fontSize.value}px`;
+        for (const line of lines) {
+            const match = line.match(/^\[(\d{2}):(\d{2})\.(\d{2})\](.*)$/);
+            if (match) {
+                const minutes = parseInt(match[1]);
+                const seconds = parseInt(match[2]);
+                const hundredths = parseInt(match[3]);
+                const text = match[4].trim();
 
-        if (fontFileInput.files.length > 0) {
-            line.style.fontFamily = 'CustomFont, sans-serif';
+                const time = minutes * 60 + seconds + hundredths / 100;
+                result.push({ time, text });
+            }
         }
 
-        if (textShadow.checked) {
-            line.style.textShadow = '2px 2px 4px rgba(0, 0, 0, 0.5)';
-        } else {
-            line.style.textShadow = 'none';
+        return result;
+    }
+
+    function startPreview() {
+        if (isPlaying) return;
+
+        lyrics = parseLyrics(lyricsText.value);
+        if (lyrics.length === 0) {
+            alert('Добавьте текст с таймкодами для предпросмотра');
+            return;
         }
-    });
-}
 
-function updateFontSize() {
-    const lyricLines = document.querySelectorAll('.lyric-line');
-    lyricLines.forEach(line => {
-        line.style.fontSize = `${fontSize.value}px`;
-    });
-}
+        if (!audioBuffer) {
+            alert('Добавьте аудио файл для предпросмотра');
+            return;
+        }
 
-function playAudio() {
-    if (!audioBuffer) {
-        alert('Пожалуйста, загрузите аудиофайл');
-        return;
-    }
+        isPlaying = true;
+        startTime = audioContext.currentTime;
 
-    const lyricsText = lyricsInput.value;
-    if (!lyricsText) {
-        alert('Пожалуйста, введите текст песни с таймкодами');
-        return;
-    }
-
-    lyrics = parseLyrics(lyricsText);
-    if (lyrics.length === 0) {
-        alert('Не удалось распознать текст с таймкодами. Проверьте формат.');
-        return;
-    }
-
-    lyricsContainer.innerHTML = '';
-    lyrics.forEach((lyric) => {
-        const div = document.createElement('div');
-        div.className = 'lyric-line';
-        div.textContent = lyric.text;
-        lyricsContainer.appendChild(div);
-    });
-
-    updateTextStyle();
-
-    if (isPlaying) {
-        pauseAudio();
-        return;
-    }
-
-    audioContext.resume().then(() => {
         audioSource = audioContext.createBufferSource();
         audioSource.buffer = audioBuffer;
         audioSource.connect(audioContext.destination);
+        audioSource.start();
 
-        startTime = audioContext.currentTime;
-        audioSource.start(0);
-        isPlaying = true;
-
-        currentLyricIndex = 0;
         updateLyrics();
 
-        audioSource.onended = () => {
-            isPlaying = false;
-            cancelAnimationFrame(animationFrameId);
-            resetLyrics();
+        audioSource.onended = function() {
+            stopPreview();
         };
-    }).catch(error => {
-        console.error('Ошибка воспроизведения:', error);
-        alert('Ошибка при воспроизведении аудио');
-    });
-}
-
-function pauseAudio() {
-    if (!isPlaying) return;
-
-    audioSource.stop();
-    isPlaying = false;
-    cancelAnimationFrame(animationFrameId);
-}
-
-function updateLyrics() {
-    if (!isPlaying) return;
-
-    const currentTime = audioContext.currentTime - startTime;
-    const lyricLines = document.querySelectorAll('.lyric-line');
-
-    lyricLines.forEach(line => line.classList.remove('active'));
-
-    while (currentLyricIndex < lyrics.length - 1 &&
-           currentTime >= lyrics[currentLyricIndex + 1].time) {
-        currentLyricIndex++;
     }
 
-    if (currentLyricIndex < lyricLines.length &&
-        currentTime >= lyrics[currentLyricIndex].time) {
-        lyricLines[currentLyricIndex].classList.add('active');
+    function stopPreview() {
+        if (!isPlaying) return;
+
+        isPlaying = false;
+        if (audioSource) {
+            audioSource.stop();
+            audioSource = null;
+        }
+
+        cancelAnimationFrame(animationFrameId);
+        previewText.classList.remove('active');
+        previewText.textContent = '';
     }
 
-    animationFrameId = requestAnimationFrame(updateLyrics);
-}
+    function updateLyrics() {
+        if (!isPlaying) return;
 
-function resetLyrics() {
-    const lyricLines = document.querySelectorAll('.lyric-line');
-    lyricLines.forEach(line => line.classList.remove('active'));
-    currentLyricIndex = 0;
-}
+        const currentTime = audioContext.currentTime - startTime;
+        let currentText = '';
+        let nextText = '';
 
-async function exportVideo() {
-    try {
-        if (!audioBuffer || !lyricsInput.value || !bgImageInput.files[0]) {
-            alert('Загрузите аудио, фон и текст песни!');
-            return;
-        }
+        // Находим текущий и следующий текст
+        for (let i = 0; i < lyrics.length; i++) {
+            if (lyrics[i].time <= currentTime) {
+                currentText = lyrics[i].text;
 
-        // Показываем статус обработки
-        const statusEl = document.getElementById('processing-status');
-        const percentEl = document.getElementById('progress-percent');
-        const progressBar = document.getElementById('progress-bar');
-        statusEl.style.display = 'block';
-
-        // Блокируем кнопку
-        exportBtn.disabled = true;
-        exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Рендеринг...';
-
-        // Парсим текст
-        const parsedLyrics = parseLyrics(lyricsInput.value);
-        if (parsedLyrics.length === 0) {
-            alert('Ошибка в формате текста! Пример:\n[00:01.23]Текст строки');
-            return;
-        }
-
-        // Готовим данные
-        const bgImageUrl = await readFileAsDataURL(bgImageInput.files[0]);
-        const fontUrl = fontFileInput.files[0] ? await readFileAsDataURL(fontFileInput.files[0]) : null;
-
-        // Создаем worker
-        const worker = new Worker('ffmpeg-worker.js');
-
-        // Обработка прогресса
-        worker.onmessage = (e) => {
-            const { type, progress, result, error } = e.data;
-
-            if (type === 'progress') {
-                const percent = Math.round(progress * 100);
-                percentEl.textContent = percent;
-                progressBar.style.width = `${percent}%`;
-            } else if (type === 'result') {
-                // Создаем ссылку для скачивания
-                const url = URL.createObjectURL(new Blob([result], { type: 'video/mp4' }));
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = 'karaoke-video.mp4';
-                a.click();
-
-                // Освобождаем память
-                setTimeout(() => URL.revokeObjectURL(url), 100);
-
-                // Завершаем
-                worker.terminate();
-                statusEl.style.display = 'none';
-                exportBtn.disabled = false;
-                exportBtn.innerHTML = '<i class="fas fa-download"></i> Экспорт видео';
-            } else if (type === 'error') {
-                alert(`Ошибка: ${error}`);
-                worker.terminate();
-                statusEl.style.display = 'none';
-                exportBtn.disabled = false;
-                exportBtn.innerHTML = '<i class="fas fa-download"></i> Экспорт видео';
+                if (i < lyrics.length - 1) {
+                    nextText = lyrics[i+1].text;
+                }
+            } else {
+                break;
             }
+        }
+
+        // Обновляем отображение текста
+        if (currentText) {
+            previewText.textContent = currentText;
+            previewText.classList.add('active');
+        } else {
+            previewText.classList.remove('active');
+        }
+
+        animationFrameId = requestAnimationFrame(updateLyrics);
+    }
+
+    function getColorName(hex) {
+        const colors = {
+            '#FFFFFF': 'Белый',
+            '#000000': 'Чёрный',
+            '#FF0000': 'Красный',
+            '#00FF00': 'Зелёный',
+            '#0000FF': 'Синий',
+            '#FFFF00': 'Жёлтый',
+            '#FF00FF': 'Пурпурный',
+            '#00FFFF': 'Бирюзовый'
         };
 
-        // Подготавливаем данные для передачи в Worker
+        return colors[hex.toUpperCase()] || hex;
+    }
+
+    async function generateVideo() {
+        // Разрешение 720x1280 (9:16)
+        const width = 720;
+        const height = 1280;
+        const frameRate = 60;
+
+        // Создаем canvas для рендеринга кадров
         const canvas = document.createElement('canvas');
-        canvas.width = 270;
-        canvas.height = 480;
+        canvas.width = width;
+        canvas.height = height;
         const ctx = canvas.getContext('2d');
 
-        // Рендерим видео в canvas
-        const bgImage = await loadImage(bgImageUrl);
-        const stream = canvas.captureStream();
-        const mediaRecorder = new MediaRecorder(stream, {
-            mimeType: 'video/webm',
-            videoBitsPerSecond: 2500000
-        });
+        // Показываем прогрессбар
+        progressContainer.style.display = 'block';
+        progressBar.style.width = '0%';
+        progressText.textContent = '0%';
 
-        const videoChunks = [];
-        mediaRecorder.ondataavailable = (e) => videoChunks.push(e.data);
+        // Загружаем фоновое изображение
+        const bgImg = await loadImage(backgroundImageInput.files[0]);
 
-        const renderPromise = new Promise((resolve) => {
-            mediaRecorder.onstop = () => resolve(new Blob(videoChunks, { type: 'video/webm' }));
-        });
+        // Параметры текста
+        const textColorValue = document.getElementById('text-color').value;
+        const textSizeValue = document.getElementById('text-size').value;
+        const textPositionValue = document.getElementById('text-position').value;
 
-        mediaRecorder.start();
+        // Разбираем текст с таймкодами
+        const lyrics = parseLyrics(lyricsText.value);
 
-        const audioBlob = new Blob([audioBuffer], { type: 'audio/wav' });
-        const audio = new Audio(URL.createObjectURL(audioBlob));
-        audio.play();
+        // Получаем длину аудио
+        const audioDuration = audioBuffer.duration;
 
-        const startTime = Date.now();
-        const duration = audioBuffer.duration * 1000;
+        // Количество кадров (60 кадров в секунду)
+        const frameCount = Math.ceil(audioDuration * frameRate);
 
-        function renderFrame() {
-            const currentTime = Date.now() - startTime;
-            const currentTimeSec = currentTime / 1000;
+        // Создаем массив для хранения кадров
+        const frames = [];
 
+        // Генерируем кадры с прогрессом
+        for (let i = 0; i < frameCount; i++) {
+            const time = i / frameRate;
+
+            // Обновляем прогресс
+            const progress = Math.floor((i / frameCount) * 100);
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+
+            // Даем браузеру возможность обновить UI
+            if (i % 10 === 0) await new Promise(resolve => setTimeout(resolve, 0));
+
+            // Очищаем canvas
             ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(bgImage, 0, 0, canvas.width, canvas.height);
 
-            ctx.textAlign = document.querySelector('.align-btn.active')?.dataset.align || 'center';
-            ctx.fillStyle = textColor.value;
-            ctx.font = `${fontSize.value}px ${fontUrl ? 'CustomFont' : 'sans-serif'}`;
+            // Рисуем фон с масштабированием и центрированием
+            const imgRatio = bgImg.width / bgImg.height;
+            const targetRatio = width / height;
 
-            if (textShadow.checked) {
-                ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
-                ctx.shadowBlur = 4;
-                ctx.shadowOffsetX = 2;
-                ctx.shadowOffsetY = 2;
+            let drawWidth, drawHeight, offsetX, offsetY;
+
+            if (imgRatio > targetRatio) {
+                drawHeight = height;
+                drawWidth = bgImg.width * (height / bgImg.height);
+                offsetX = (width - drawWidth) / 2;
+                offsetY = 0;
+            } else {
+                drawWidth = width;
+                drawHeight = bgImg.height * (width / bgImg.width);
+                offsetX = 0;
+                offsetY = (height - drawHeight) / 2;
             }
 
-            let currentLine = null;
-            for (let i = 0; i < parsedLyrics.length; i++) {
-                if (currentTimeSec >= parsedLyrics[i].time) {
-                    currentLine = parsedLyrics[i].text;
+            ctx.drawImage(bgImg, offsetX, offsetY, drawWidth, drawHeight);
+
+            // Находим текст для текущего времени
+            let currentText = '';
+            for (const line of lyrics) {
+                if (line.time <= time) {
+                    currentText = line.text;
                 } else {
                     break;
                 }
             }
 
-            if (currentLine) {
-                const x = ctx.textAlign === 'left' ? 20 :
-                         ctx.textAlign === 'right' ? canvas.width - 20 :
-                         canvas.width / 2;
-                ctx.fillText(currentLine, x, canvas.height / 2);
+            // Рисуем текст, если он есть
+            if (currentText) {
+                ctx.fillStyle = textColorValue;
+                ctx.font = `${textSizeValue}px '${fontName}'`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
+                ctx.shadowBlur = 3;
+                ctx.shadowOffsetX = 1;
+                ctx.shadowOffsetY = 1;
+
+                const yPos = height - (height * (textPositionValue / 100));
+                const xPos = width / 2;
+
+                // Разбиваем текст на строки, если есть переносы
+                const lines = currentText.split('\n');
+                const lineHeight = parseInt(textSizeValue) * 1.2;
+
+                for (let j = 0; j < lines.length; j++) {
+                    ctx.fillText(lines[j], xPos, yPos - (lines.length - j - 1) * lineHeight);
+                }
             }
 
-            if (currentTime < duration) {
-                requestAnimationFrame(renderFrame);
-            } else {
-                mediaRecorder.stop();
-                audio.pause();
-            }
+            // Добавляем кадр в массив
+            frames.push(canvas.toDataURL('image/jpeg'));
         }
 
-        renderFrame();
+        // Финальное обновление прогресса
+        progressBar.style.width = '100%';
+        progressText.textContent = '100%';
 
-        // Ждем завершения записи видео
-        const webmBlob = await renderPromise;
-        const webmData = await webmBlob.arrayBuffer();
-        const audioData = await audioBlob.arrayBuffer();
+        // Конвертируем кадры в видео с помощью FFmpeg
+        await createVideoFromFrames(frames, audioFileInput.files[0], frameRate);
 
-        // Отправляем данные в worker
-        worker.postMessage({
-            type: 'process',
-            data: { webmData, audioData }
-        }, [webmData, audioData]);
-
-    } catch (error) {
-        console.error('Ошибка:', error);
-        alert(`Ошибка: ${error.message}`);
-        document.getElementById('processing-status').style.display = 'none';
-        exportBtn.disabled = false;
-        exportBtn.innerHTML = '<i class="fas fa-download"></i> Экспорт видео';
+        // Скрываем прогрессбар после завершения
+        progressContainer.style.display = 'none';
     }
-}
 
-// Вспомогательные функции
-function readFileAsDataURL(file) {
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => resolve(e.target.result);
-        reader.readAsDataURL(file);
-    });
-}
+    async function createVideoFromFrames(frames, audioFile, frameRate) {
+        // Показываем прогресс конвертации
+        progressText.textContent = 'Обработка FFmpeg...';
 
-function loadImage(url) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve(img);
-        img.onerror = reject;
-        img.src = url;
-    });
-}
+        // Создаем временный файл для аудио
+        const audioData = await readFileAsArrayBuffer(audioFile);
+        ffmpeg.FS('writeFile', 'audio.mp3', new Uint8Array(audioData));
 
-function switchTab(tabId) {
-    tabContents.forEach(content => content.classList.remove('active'));
-    document.getElementById(tabId).classList.add('active');
+        // Записываем кадры с прогрессом
+        const batchSize = 100; // Записываем кадры пачками по 100
+        for (let i = 0; i < frames.length; i += batchSize) {
+            const batchEnd = Math.min(i + batchSize, frames.length);
+            for (let j = i; j < batchEnd; j++) {
+                const frameData = await fetch(frames[j]).then(res => res.arrayBuffer());
+                ffmpeg.FS('writeFile', `frame${j.toString().padStart(5, '0')}.jpg`, new Uint8Array(frameData));
+            }
 
-    tabBtns.forEach(btn => {
-        btn.classList.remove('active', 'border-blue-500');
-        btn.classList.add('border-transparent');
-    });
+            // Обновляем прогресс
+            const progress = Math.floor((batchEnd / frames.length) * 100);
+            progressBar.style.width = `${progress}%`;
+            progressText.textContent = `${progress}%`;
+            await new Promise(resolve => setTimeout(resolve, 0));
+        }
 
-    const activeBtn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
-    activeBtn.classList.add('active', 'border-blue-500');
-    activeBtn.classList.remove('border-transparent');
-}
+        // Создаем файл со списком кадров
+        const frameList = Array.from({ length: frames.length }, (_, i) =>
+            `file 'frame${i.toString().padStart(5, '0')}.jpg'\nduration ${1/frameRate}`
+        ).join('\n');
+        ffmpeg.FS('writeFile', 'frame_list.txt', new TextEncoder().encode(frameList));
+
+        // Выполняем команды FFmpeg с высоким качеством
+        await ffmpeg.run(
+            '-f', 'concat',
+            '-i', 'frame_list.txt',
+            '-i', 'audio.mp3',
+            '-r', frameRate.toString(),
+            '-c:v', 'libx264',
+            '-preset', 'slow',
+            '-crf', '18',
+            '-pix_fmt', 'yuv420p',
+            '-c:a', 'aac',
+            '-b:a', '192k',
+            '-shortest',
+            '-vf', 'scale=720:1280', // Явно указываем масштаб 720x1280
+            'output.mp4'
+        );
+
+        // Получаем результат
+        const data = ffmpeg.FS('readFile', 'output.mp4');
+        const blob = new Blob([data.buffer], { type: 'video/mp4' });
+        const url = URL.createObjectURL(blob);
+
+        // Создаем ссылку для скачивания
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'generated-video.mp4';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        // Освобождаем память
+        setTimeout(() => URL.revokeObjectURL(url), 100);
+    }
+
+    function loadImage(file) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = URL.createObjectURL(file);
+        });
+    }
+
+    function readFileAsArrayBuffer(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsArrayBuffer(file);
+        });
+    }
+});

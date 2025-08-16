@@ -1,323 +1,286 @@
-/* Основные стили */
-body {
-    font-family: Arial, sans-serif;
-    background-color: #f3f4f6;
+ :root {
+    --primary-color: #4a6bff;
+    --secondary-color: #f5f7ff;
+    --dark-color: #2d3748;
+    --light-color: #f8f9fa;
+}
+
+* {
     margin: 0;
-    padding: 20px;
-    color: #333;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: var(--light-color);
+    color: var(--dark-color);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    background-color: var(--primary-color);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
 .container {
-    max-width: 1200px;
-    margin: 0 auto;
+    display: flex;
+    flex: 1;
+    padding: 1rem;
+    gap: 1rem;
 }
 
-h1, h2 {
-    color: #111827;
-}
-
-h1 {
-    font-size: 28px;
-    text-align: center;
-    margin-bottom: 30px;
-}
-
-h2 {
-    font-size: 20px;
-    margin-top: 0;
-    margin-bottom: 20px;
-}
-
-/* Лейаут */
-.main-columns {
+.editor-panel {
+    flex: 1;
+    background-color: white;
+    border-radius: 8px;
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
     display: flex;
     flex-direction: column;
-    gap: 20px;
 }
 
-@media (min-width: 1024px) {
-    .main-columns {
-        flex-direction: row;
-    }
-}
-
-.settings-panel, .preview-panel {
-    flex: 1;
-}
-
-/* Панели */
-.settings-panel, .preview-panel, .instructions {
-    background: white;
+.preview-panel {
+    width: 360px;
+    background-color: white;
     border-radius: 8px;
-    padding: 20px;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 1rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    display: flex;
+    flex-direction: column;
 }
 
-/* Табы */
+.panel-title {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid #eee;
+}
+
 .tabs {
     display: flex;
-    border-bottom: 1px solid #e5e7eb;
-    margin-bottom: 20px;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 1rem;
 }
 
-.tab-btn {
-    padding: 8px 16px;
-    background: none;
-    border: none;
+.tab {
+    padding: 0.5rem 1rem;
+    cursor: pointer;
     border-bottom: 2px solid transparent;
-    cursor: pointer;
-    font-weight: 500;
-    color: #6b7280;
-}
-
-.tab-btn.active {
-    border-bottom-color: #3b82f6;
-    color: #3b82f6;
-}
-
-/* Формы */
-.form-group {
-    margin-bottom: 20px;
-}
-
-label {
-    display: block;
-    font-size: 14px;
-    font-weight: 500;
-    margin-bottom: 8px;
-    color: #374151;
-}
-
-.hint {
-    font-size: 12px;
-    color: #6b7280;
-    margin-top: 4px;
-}
-
-/* Кнопки */
-.btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 10px 16px;
-    border-radius: 6px;
-    border: none;
-    cursor: pointer;
-    font-weight: 500;
     transition: all 0.2s;
 }
 
-.btn-primary {
-    background-color: #3b82f6;
-    color: white;
-}
-
-.btn-primary:hover {
-    background-color: #2563eb;
-}
-
-.btn-success {
-    background-color: #10b981;
-    color: white;
-}
-
-.btn-success:hover {
-    background-color: #059669;
-}
-
-.btn-warning {
-    background-color: #f59e0b;
-    color: white;
-}
-
-.btn-warning:hover {
-    background-color: #d97706;
-}
-
-/* Поля ввода */
-textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    resize: vertical;
-    min-height: 100px;
-}
-
-textarea:focus {
-    outline: none;
-    border-color: #3b82f6;
-    box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-.hidden {
-    display: none;
-}
-
-/* Инструкция */
-.instructions {
-    margin-top: 20px;
-}
-
-.instructions ol {
-    padding-left: 20px;
-    margin: 0;
-}
-
-.instructions li {
-    margin-bottom: 8px;
-}
-
-/* Контролы */
-.controls {
-    display: flex;
-    gap: 12px;
-    margin-top: 20px;
-    justify-content: center;
-}
-
-/* Дополнительные стили из оригинального style.css */
-.video-preview {
-    width: 270px;
-    height: 480px;
-    background-size: cover;
-    background-position: center;
-    position: relative;
-    overflow: hidden;
-    background-color: #e5e7eb;
-    border-radius: 0.5rem;
-    margin: 0 auto;
-}
-
-.lyrics-container {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    padding: 20px;
-    box-sizing: border-box;
-    text-align: center;
-}
-
-.lyric-line {
-    margin: 8px 0;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-    font-size: 24px;
-    color: white;
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
-}
-
-.lyric-line.active {
-    opacity: 1;
-}
-
-.slider-container {
-    width: 100%;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 8px;
-}
-
-.slider {
-    flex-grow: 1;
-    height: 6px;
-    -webkit-appearance: none;
-    appearance: none;
-    background: #d1d5db;
-    border-radius: 3px;
-    outline: none;
-}
-
-.slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 16px;
-    height: 16px;
-    background: #3b82f6;
-    border-radius: 50%;
-    cursor: pointer;
-}
-
-.slider-value {
-    width: 40px;
-    text-align: center;
-    font-size: 14px;
-}
-
-.color-preview {
-    width: 30px;
-    height: 30px;
-    border-radius: 4px;
-    border: 1px solid #d1d5db;
-    background-color: white;
+.tab.active {
+    border-bottom-color: var(--primary-color);
+    color: var(--primary-color);
+    font-weight: 600;
 }
 
 .tab-content {
     display: none;
-    padding-top: 16px;
+    flex: 1;
+    overflow-y: auto;
 }
 
 .tab-content.active {
     display: block;
 }
 
-#waveform {
+.form-group {
+    margin-bottom: 1rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-control {
     width: 100%;
-    height: 100px;
-    background: #f0f0f0;
-    margin-top: 10px;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
     border-radius: 4px;
+    font-size: 1rem;
 }
 
-.align-buttons {
+.btn {
+    display: inline-block;
+    padding: 0.5rem 1rem;
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 1rem;
+    transition: background-color 0.2s;
+}
+
+.btn:hover {
+    background-color: #3a5bef;
+}
+
+.btn-secondary {
+    background-color: #6c757d;
+}
+
+.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.btn-block {
+    display: block;
+    width: 100%;
+}
+
+.range-slider {
+    width: 100%;
+}
+
+.preview-container {
+    position: relative;
+    width: 100%;
+    height: 640px;
+    background-color: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 1rem;
+}
+
+.preview-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.preview-text {
+    position: absolute;
+    bottom: 20%;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    color: white;
+    font-size: 24px;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.8);
+    padding: 0 1rem;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.preview-text.active {
+    opacity: 1;
+}
+
+.preview-controls {
     display: flex;
-    gap: 8px;
+    justify-content: center;
+    gap: 1rem;
 }
 
-.align-btn {
-    padding: 6px 12px;
-    border: 1px solid #d1d5db;
+.lyrics-input {
+    width: 100%;
+    height: 200px;
+    padding: 0.5rem;
+    border: 1px solid #ddd;
     border-radius: 4px;
-    background: none;
+    font-size: 1rem;
+    resize: vertical;
+}
+
+.file-input-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    width: 100%;
+}
+
+.file-input-wrapper input[type=file] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    cursor: pointer;
+}
+
+.file-input-label {
+    display: block;
+    padding: 0.5rem;
+    background-color: #f8f9fa;
+    border: 1px dashed #ddd;
+    border-radius: 4px;
+    text-align: center;
     cursor: pointer;
     transition: all 0.2s;
 }
 
-.align-btn:hover {
-    background-color: #f3f4f6;
+.file-input-label:hover {
+    background-color: #e9ecef;
 }
 
-.align-btn.active {
-    background-color: #3b82f6;
-    color: white;
-    border-color: #3b82f6;
-}
-
-.file-input {
-    display: flex;
-    align-items: center;
-    gap: 10px;
+.file-info {
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+    color: #6c757d;
 }
 
 .color-picker {
     display: flex;
     align-items: center;
-    gap: 15px;
+    gap: 0.5rem;
 }
 
-input[type="color"] {
-    width: 50px;
-    height: 50px;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
+.color-picker input {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: none;
     cursor: pointer;
 }
 
-input[type="checkbox"] {
-    margin-right: 8px;
+@media (max-width: 768px) {
+    .container {
+        flex-direction: column;
+    }
+
+    .preview-panel {
+        width: 100%;
+    }
+
+    .preview-container {
+        height: 400px;
+    }
+}
+
+ .progress-container {
+    width: 100%;
+    background-color: #e9ecef;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+    overflow: hidden;
+    position: relative;
+}
+
+.progress-bar {
+    height: 20px;
+    background-color: var(--primary-color);
+    width: 0%;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    text-align: center;
+    line-height: 20px;
+    color: var(--dark-color);
+    font-weight: 500;
 }
