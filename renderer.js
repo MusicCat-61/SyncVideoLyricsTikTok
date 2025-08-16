@@ -1,4 +1,4 @@
-const { createFFmpeg, fetchFile } = FFmpeg;
+import { createFFmpeg, fetchFile } from './ffmpeg.min.js';
 
 // Создаем прогрессбар
 function createProgressBar() {
@@ -128,10 +128,10 @@ async function renderVideo(options) {
       const worker = new Worker('ffmpeg-worker.js');
 
       worker.onmessage = (e) => {
-        const { type, progress, result, error } = e.data;
+        const { type, progress: workerProgress, result, error } = e.data;
 
         if (type === 'progress') {
-          progress.update(progress);
+          progress.update(workerProgress);
         } else if (type === 'result') {
           progress.remove();
           resolve(new Blob([result], { type: 'video/mp4' }));
@@ -171,3 +171,6 @@ async function loadImage(url) {
     img.src = url;
   });
 }
+
+// Экспортируем функции для использования в других модулях
+export { renderVideo, loadImage };

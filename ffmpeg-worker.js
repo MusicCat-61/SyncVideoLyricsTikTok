@@ -1,31 +1,20 @@
 // ffmpeg-worker.js
-let ffmpeg;
-
-async function initializeFFmpeg() {
-  if (!ffmpeg) {
-    // Загружаем FFmpeg из файла
-    const ffmpegScript = await fetch('/ffmpeg.min.js').then(r => r.text());
-    new Function(ffmpegScript)(); // Исполняем загруженный скрипт
-
-    const { createFFmpeg } = FFmpeg;
-    ffmpeg = createFFmpeg({
-      log: true,
-      corePath: '/ffmpeg-core.js',
-      workerPath:'/ffmpeg-core.worker.js',
-      mainName: 'main',
-      MEMFS: 2048
-    });
-
-    await ffmpeg.load();
-  }
-}
+const { createFFmpeg } = FFmpeg;
+const ffmpeg = createFFmpeg({
+  log: true,
+  corePath: '/ffmpeg-core.js',
+  workerPath: '/ffmpeg-core.worker.js'
+});
 
 self.onmessage = async function(e) {
   if (e.data.type === 'process') {
     try {
-      await initializeFFmpeg();
+      if (!ffmpeg.isLoaded()) {
+        await ffmpeg.load();
+      }
 
-      const { webmData, audioData } = e.data;
+      const { webmData, audioData } = e.data.data;
+
       ffmpeg.FS('writeFile', 'input.webm', new Uint8Array(webmData));
       ffmpeg.FS('writeFile', 'audio.wav', new Uint8Array(audioData));
 
@@ -39,8 +28,6 @@ self.onmessage = async function(e) {
         '-c:v', 'libx264',
         '-c:a', 'aac',
         '-strict', 'experimental',
-        '-f', 'mp4',
-        '-movflags', 'frag_keyframe+empty_moov',
         'output.mp4'
       );
 
