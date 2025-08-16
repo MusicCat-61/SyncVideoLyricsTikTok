@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 fontName: fontName,
                 width: 720,
                 height: 1280,
-                frameRate: 60,
+                frameRate: 30,
                 filename: filename
             };
 
@@ -309,21 +309,16 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Функция генерации видео
     async function generateVideo(params) {
         try {
-            // Обновляем статус
             updateProgress(0, 'Подготовка данных...');
 
-            // Загружаем фоновое изображение
-            updateProgress(5, 'Загрузка фонового изображения...');
             const bgImg = await createImage(params.bgImg);
-
-            // Создаем canvas
             const canvas = document.createElement('canvas');
             canvas.width = params.width;
             canvas.height = params.height;
             const ctx = canvas.getContext('2d');
             const frameCount = Math.ceil(params.audioDuration * params.frameRate);
 
-            // Очищаем предыдущие файлы
+            // Очистка предыдущих файлов
             try {
                 ffmpeg.FS('unlink', 'audio.mp3');
                 for (let i = 0; i < frameCount; i++) {
@@ -332,18 +327,21 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             } catch (e) {}
 
-            // Этап 1: Генерация кадров
             updateProgress(10, 'Генерация кадров... (0%)');
-            const framesProgressStep = 70; // 70% от общего прогресса на кадры
+            const framesProgressStep = 70;
 
-            for (let i = 0; i < frameCount; i += 10) {
-                const batchEnd = Math.min(i + 10, frameCount);
+            // Асинхронная генерация кадров с возможностью обновления UI
+            const batchSize = 10; // Размер пакета кадров
+            for (let i = 0; i < frameCount; i += batchSize) {
+                await processFrameBatch(i, Math.min(i + batchSize, frameCount));
+                await new Promise(resolve => setTimeout(resolve, 0)); // Освобождаем поток
+            }
 
-                for (let j = i; j < batchEnd; j++) {
-                    const time = j / params.frameRate;
-                    let currentText = getCurrentLyric(params.lyrics, time);
+            async function processFrameBatch(start, end) {
+                for (let j = start; j < end; j++) {
+                    const exactTime = j / params.frameRate;
+                    let currentText = getCurrentLyric(params.lyrics, exactTime);
 
-                    // Рендеринг кадра
                     ctx.clearRect(0, 0, params.width, params.height);
                     ctx.drawImage(bgImg, 0, 0, params.width, params.height);
 
@@ -351,7 +349,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                         renderText(ctx, currentText, params);
                     }
 
-                    // Сохранение кадра
                     const blob = await new Promise(resolve =>
                         canvas.toBlob(resolve, 'image/jpeg', 0.9)
                     );
@@ -360,11 +357,8 @@ document.addEventListener('DOMContentLoaded', async function() {
                         new Uint8Array(arrayBuffer));
                 }
 
-                // Обновление прогресса для этапа генерации кадров
-                const framesProgress = Math.floor((batchEnd / frameCount) * framesProgressStep);
-                updateProgress(10 + framesProgress, `Генерация кадров... (${Math.floor((batchEnd / frameCount) * 100)}%)`);
-
-                await new Promise(resolve => setTimeout(resolve, 0)); // Даем UI обновиться
+                const framesProgress = Math.floor((end / frameCount) * framesProgressStep);
+                updateProgress(10 + framesProgress, `Генерация кадров... (${Math.floor((end / frameCount) * 100)}%)`);
             }
 
             // Этап 2: Запись аудио
@@ -379,8 +373,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 '-i', 'audio.mp3',
                 '-r', params.frameRate.toString(),
                 '-c:v', 'libx264',
-                '-preset', 'fast',
-                '-crf', '20',
+                '-preset', 'ultrafast', // Быстрее, чем 'fast'
+                '-crf', '23', // Немного лучше качество
+                '-vsync', 'vfr', // Переменный FPS для точности
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
                 '-b:a', '192k',
@@ -446,8 +441,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     function getCurrentLyric(lyrics, time) {
-        for (let i = lyrics.length - 1; i >= 0; i--) {
-            if (lyrics[i].time <= time) {
+        // Добавляем поиск следующего текста для плавного перехода
+        for (let i = 0; i < lyrics.length; i++) {
+            const nextTime = i < lyrics.length - 1 ? lyrics[i+1].time : Infinity;
+            if (time >= lyrics[i].time && time < nextTime) {
                 return lyrics[i].text;
             }
         }
