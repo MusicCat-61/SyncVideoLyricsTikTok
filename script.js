@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', async function() {
                 fontName: fontName,
                 width: 720,
                 height: 1280,
-                frameRate: 30,
+                frameRate: 24,
                 filename: filename
             };
 
@@ -373,9 +373,9 @@ document.addEventListener('DOMContentLoaded', async function() {
                 '-i', 'audio.mp3',
                 '-r', params.frameRate.toString(),
                 '-c:v', 'libx264',
-                '-preset', 'ultrafast', // Быстрее, чем 'fast'
+                '-preset', 'fast', // Быстрее, чем 'fast'
                 '-crf', '23', // Немного лучше качество
-                '-vsync', 'passthrough', // Переменный FPS для точности
+                '-vsync', 'cfr', // Переменный FPS для точности
                 '-pix_fmt', 'yuv420p',
                 '-c:a', 'aac',
                 '-b:a', '192k',
