@@ -83,7 +83,6 @@ document.addEventListener('DOMContentLoaded', async function() {
     // Инициализация стилей обводки
     previewText.style.textShadow = `${strokeSize.value}px ${strokeSize.value}px ${strokeSize.value}px ${strokeColor.value}`;
 
-// Обработчики для обводки
 
 
 
@@ -177,8 +176,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     });
 
     strokeSize.addEventListener('input', function() {
-        const size = this.value;
-        strokeSizeValue.textContent = size;
+        strokeSizeValue.textContent = this.value;
         updateTextStroke();
     });
 
