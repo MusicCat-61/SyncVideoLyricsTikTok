@@ -1,25 +1,49 @@
-const ffmpegLoading = new Promise(async (resolve) => {
+// Обновляем версии библиотек
+const FFMPEG_VERSION = '0.11.6';
+const CORE_VERSION = '0.11.0';
+
+const ffmpegLoading = new Promise(async (resolve, reject) => {
     try {
-        const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
-        const ffmpeg = createFFmpeg({
-            log: true,
-            corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-        });
-        await ffmpeg.load();
-        // Сохраняем только необходимые методы, а не весь объект
-        window.ffmpeg = {
-            FS: ffmpeg.FS.bind(ffmpeg),
-            run: ffmpeg.run.bind(ffmpeg),
-            isLoaded: () => true
+        // Создаем элемент script для загрузки ffmpeg
+        const script = document.createElement('script');
+        script.src = `https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/ffmpeg.min.js`;
+        script.onload = async () => {
+            try {
+                // Теперь ffmpeg доступен через window.FFmpeg
+                const { createFFmpeg } = window.FFmpeg;
+                const ffmpeg = createFFmpeg({
+                    log: true,
+                    corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
+                });
+
+                await ffmpeg.load();
+
+                window.ffmpeg = {
+                    FS: ffmpeg.FS.bind(ffmpeg),
+                    run: ffmpeg.run.bind(ffmpeg),
+                    isLoaded: () => true
+                };
+
+                resolve();
+            } catch (error) {
+                console.error('Ошибка инициализации FFmpeg:', error);
+                reject(error);
+            }
         };
-        resolve();
+        script.onerror = () => {
+            const error = new Error('Не удалось загрузить FFmpeg');
+            console.error(error);
+            reject(error);
+        };
+        document.head.appendChild(script);
     } catch (error) {
         console.error('Ошибка загрузки FFmpeg:', error);
-        throw error;
+        reject(error);
     }
 });
 
 window.ffmpegLoading = ffmpegLoading;
+
 
 document.addEventListener('DOMContentLoaded', async function() {
     // Добавим статус загрузки в интерфейс

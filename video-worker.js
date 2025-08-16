@@ -2,13 +2,21 @@
 let ffmpeg = null;
 let isInitialized = false;
 
+const FFMPEG_VERSION = '0.11.6';
+const CORE_VERSION = '0.11.0';
+
+
 async function loadFFmpeg() {
     try {
-        const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
+        // Используем importScripts для загрузки в воркере
+        importScripts(`https://unpkg.com/@ffmpeg/ffmpeg@${FFMPEG_VERSION}/dist/ffmpeg.min.js`);
+
+        const { createFFmpeg } = window.FFmpeg;
         ffmpeg = createFFmpeg({
             log: true,
-            corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+            corePath: `https://unpkg.com/@ffmpeg/core@${CORE_VERSION}/dist/ffmpeg-core.js`
         });
+
         await ffmpeg.load();
         return ffmpeg;
     } catch (error) {
