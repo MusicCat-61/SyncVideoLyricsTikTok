@@ -2,44 +2,30 @@
 let ffmpeg = null;
 let isInitialized = false;
 
-// Импортируем FFmpeg внутри воркера
-async function loadFFmpeg() {
-    const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
-    ffmpeg = createFFmpeg({ log: true });
-    await ffmpeg.load();
-    return ffmpeg;
-}
-
 self.onmessage = async function(e) {
-    console.log(`[Worker] Получено сообщение типа: ${e.data.type}`, e.data);
+    console.log(`[Worker] Получено сообщение типа: ${e.data.type}`);
 
     try {
         switch (e.data.type) {
-            case 'ready':
-                console.log('[Worker] Подтверждаю готовность к инициализации');
-                self.postMessage({ type: 'worker_ready' });
-                break;
-
             case 'init':
-                console.log('[Worker] Начало инициализации FFmpeg');
+                console.log('[Worker] Инициализация FFmpeg...');
 
-                // Загружаем FFmpeg внутри воркера
-                ffmpeg = await loadFFmpeg();
-                console.log('[Worker] FFmpeg успешно загружен');
+                // Получаем уже загруженный FFmpeg из main thread
+                ffmpeg = e.data.ffmpeg;
+
+                if (!ffmpeg || !ffmpeg.isLoaded()) {
+                    throw new Error('FFmpeg не был корректно передан из основного потока');
+                }
 
                 isInitialized = true;
                 self.postMessage({ type: 'ffmpeg_ready' });
-                console.log('[Worker] Отправлено сообщение ffmpeg_ready');
                 break;
 
             case 'start':
                 console.log('[Worker] Получена команда start');
 
-                if (!isInitialized || !ffmpeg || !ffmpeg.isLoaded()) {
-                    const errorMsg = !ffmpeg ? 'FFmpeg не передан' :
-                                   !ffmpeg.isLoaded() ? 'FFmpeg не загружен' :
-                                   'Воркер не инициализирован';
-                    throw new Error(errorMsg);
+                if (!isInitialized || !ffmpeg) {
+                    throw new Error('FFmpeg не инициализирован');
                 }
 
                 console.log('[Worker] FFmpeg готов, начинаю обработку видео...');
@@ -152,8 +138,7 @@ self.onmessage = async function(e) {
         console.error('[Worker] Ошибка:', error);
         self.postMessage({
             type: 'error',
-            error: error.message,
-            stack: error.stack
+            error: error.message
         });
     }
 };

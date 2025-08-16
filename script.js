@@ -1,3 +1,18 @@
+const ffmpegLoading = new Promise(async (resolve) => {
+    const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
+    const ffmpeg = createFFmpeg({
+        log: true,
+        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+    });
+    await ffmpeg.load();
+    window.ffmpeg = ffmpeg;
+    resolve();
+});
+
+// Сохраняем ссылку на промис для использования в обработчике
+window.ffmpegLoading = ffmpegLoading;
+
+
 document.addEventListener('DOMContentLoaded', async function() {
     // Добавим статус загрузки в интерфейс
     const statusElement = document.createElement('div');
@@ -49,7 +64,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     let ffmpegLoaded = false;
     let videoWorker = null;
 
-    try {
+     try {
         // Ждем загрузки FFmpeg
         await window.ffmpegLoading;
         statusElement.textContent = 'FFmpeg успешно загружен!';
@@ -70,8 +85,6 @@ document.addEventListener('DOMContentLoaded', async function() {
         return;
     }
 
-    // Инициализация WebWorker
-    // script.js (исправленная часть)
     async function initWorker() {
         console.log('[Main] Инициализация воркера...');
 
@@ -80,31 +93,50 @@ document.addEventListener('DOMContentLoaded', async function() {
         videoWorker = new Worker('video-worker.js');
 
         return new Promise((resolve, reject) => {
-            videoWorker.onmessage = function(e) {
+            const messageHandler = function(e) {
                 switch (e.data.type) {
-                    case 'worker_ready':
-                        console.log('[Main] Воркер готов к приёму FFmpeg');
-                        // Вместо передачи объекта FFmpeg, просто уведомляем воркер о готовности
-                        videoWorker.postMessage({
-                            type: 'init',
-                            // Не передаем объект ffmpeg здесь
-                        });
-                        break;
-
                     case 'ffmpeg_ready':
                         console.log('[Main] FFmpeg успешно инициализирован в воркере');
+                        videoWorker.removeEventListener('message', messageHandler);
                         resolve(videoWorker);
                         break;
 
                     case 'error':
                         console.error('[Main] Ошибка в воркере:', e.data.error);
+                        videoWorker.removeEventListener('message', messageHandler);
                         reject(new Error(e.data.error));
+                        break;
+
+                    case 'progress':
+                        progressBar.style.width = `${e.data.progress}%`;
+                        progressText.textContent = `${e.data.progress}%`;
+                        break;
+
+                    case 'complete':
+                        const blob = e.data.blob;
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        a.download = 'video.mp4';
+                        document.body.appendChild(a);
+                        a.click();
+                        setTimeout(() => {
+                            document.body.removeChild(a);
+                            URL.revokeObjectURL(url);
+                            downloadBtn.disabled = false;
+                            downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
+                        }, 100);
                         break;
                 }
             };
 
-            console.log('[Main] Отправляю запрос готовности воркеру');
-            videoWorker.postMessage({ type: 'ready' });
+            videoWorker.addEventListener('message', messageHandler);
+
+            // Передаем уже загруженный FFmpeg в воркер
+            videoWorker.postMessage({
+                type: 'init',
+                ffmpeg: ffmpeg
+            });
         });
     }
 

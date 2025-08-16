@@ -112,22 +112,7 @@
         </div>
     </div>
 
-    <!-- FFmpeg scripts -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
 
-    <script>
-      // Глобальная переменная для отслеживания состояния загрузки
-        window.ffmpegLoading = new Promise(async (resolve) => {
-      const { createFFmpeg } = FFmpeg;
-      const ffmpeg = createFFmpeg({
-        log: true,
-        corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
-      });
-      await ffmpeg.load();
-      window.ffmpeg = ffmpeg;
-      resolve()
-    });
-    </script>
 
     <script src="script.js"></script>
     <script src="video-worker.js"></script>
