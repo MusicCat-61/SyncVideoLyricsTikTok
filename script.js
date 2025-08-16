@@ -71,8 +71,8 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Инициализация WebWorker
+    // script.js (исправленная часть)
     async function initWorker() {
-
         console.log('[Main] Инициализация воркера...');
 
         if (videoWorker) return videoWorker;
@@ -84,10 +84,10 @@ document.addEventListener('DOMContentLoaded', async function() {
                 switch (e.data.type) {
                     case 'worker_ready':
                         console.log('[Main] Воркер готов к приёму FFmpeg');
-                        // Отправляем FFmpeg
+                        // Вместо передачи объекта FFmpeg, просто уведомляем воркер о готовности
                         videoWorker.postMessage({
                             type: 'init',
-                            ffmpeg: ffmpeg
+                            // Не передаем объект ffmpeg здесь
                         });
                         break;
 
@@ -103,7 +103,6 @@ document.addEventListener('DOMContentLoaded', async function() {
                 }
             };
 
-            // Инициируем процесс
             console.log('[Main] Отправляю запрос готовности воркеру');
             videoWorker.postMessage({ type: 'ready' });
         });

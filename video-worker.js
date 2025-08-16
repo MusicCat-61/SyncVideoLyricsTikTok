@@ -2,38 +2,34 @@
 let ffmpeg = null;
 let isInitialized = false;
 
-
+// Импортируем FFmpeg внутри воркера
+async function loadFFmpeg() {
+    const { createFFmpeg } = await import('https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js');
+    ffmpeg = createFFmpeg({ log: true });
+    await ffmpeg.load();
+    return ffmpeg;
+}
 
 self.onmessage = async function(e) {
     console.log(`[Worker] Получено сообщение типа: ${e.data.type}`, e.data);
 
     try {
         switch (e.data.type) {
-
             case 'ready':
-                // Отвечаем, что воркер готов к инициализации
                 console.log('[Worker] Подтверждаю готовность к инициализации');
                 self.postMessage({ type: 'worker_ready' });
                 break;
+
             case 'init':
                 console.log('[Worker] Начало инициализации FFmpeg');
 
-                if (!e.data.ffmpeg) {
-                    throw new Error('FFmpeg объект не передан');
-                }
-
-                ffmpeg = e.data.ffmpeg;
-                console.log('[Worker] FFmpeg получен', ffmpeg !== null);
-
-                if (!ffmpeg.isLoaded()) {
-                    console.log('[Worker] FFmpeg не загружен, начинаю загрузку...');
-                    await ffmpeg.load();
-                    console.log('[Worker] FFmpeg успешно загружен');
-                }
+                // Загружаем FFmpeg внутри воркера
+                ffmpeg = await loadFFmpeg();
+                console.log('[Worker] FFmpeg успешно загружен');
 
                 isInitialized = true;
-                self.postMessage({ type: 'ready' });
-                console.log('[Worker] Отправлено сообщение ready');
+                self.postMessage({ type: 'ffmpeg_ready' });
+                console.log('[Worker] Отправлено сообщение ffmpeg_ready');
                 break;
 
             case 'start':
