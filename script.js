@@ -24,9 +24,6 @@ const lyricsContainer = document.getElementById('lyrics-container');
 const tabBtns = document.querySelectorAll('.tab-btn');
 const tabContents = document.querySelectorAll('.tab-content');
 
-if (!crossOriginIsolated) {
-  alert('Для работы экспорта видео требуется включить cross-origin isolation. Разместите эти файлы на веб-сервере или используйте локальный сервер для разработки.');
-}
 
 
 // Аудио элементы
@@ -58,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
     textShadow.addEventListener('change', updateTextStyle);
     alignBtns.forEach(btn => btn.addEventListener('click', handleAlignBtn));
 
-    previewBtn.addEventListener('click', previewVideo);
+
     playBtn.addEventListener('click', playAudio);
     pauseBtn.addEventListener('click', pauseAudio);
     exportBtn.addEventListener('click', exportVideo);

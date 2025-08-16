@@ -1,11 +1,11 @@
 
 const { createFFmpeg, fetchFile } = FFmpeg;
-if (!crossOriginIsolated) {
-  throw new Error('SharedArrayBuffer is not available. Enable cross-origin isolation.');
-}
+
 const ffmpeg = createFFmpeg({
   log: true,
-  corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js' // ← core-st вместо core
+  corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
+  mainName: 'main', // Add this line
+  MEMFS: 2048 // Increase memory if needed (in MB)
 });
 
 async function renderVideo(options) {
