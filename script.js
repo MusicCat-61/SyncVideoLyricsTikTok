@@ -71,62 +71,76 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     // Инициализация WebWorker
-    function initWorker() {
+    async function initWorker() {
         if (videoWorker) return;
 
         videoWorker = new Worker('video-worker.js');
 
+        // Обработчик сообщений от воркера
         videoWorker.onmessage = function(e) {
-            const { type, progress, error } = e.data;
+            const { type, progress, error, blob } = e.data;
 
-            if (type === 'ready') {
-                // Отправляем FFmpeg в воркер
-                videoWorker.postMessage({
-                    type: 'init',
-                    ffmpeg: ffmpeg
-                });
-                return;
-            }
+            switch (type) {
+                case 'ready':
+                    // Это сообщение теперь обрабатывается в Promise ниже
+                    break;
 
-            if (type === 'progress') {
-                progressBar.style.width = `${progress}%`;
-                progressText.textContent = `${progress}%`;
-            }
+                case 'progress':
+                    progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${progress}%`;
+                    break;
 
-            if (type === 'complete') {
-                const { blob } = e.data;
-                const url = URL.createObjectURL(blob);
+                case 'complete':
+                    const url = URL.createObjectURL(blob);
+                    const audioFileName = audioFileInfo.textContent
+                        ? audioFileInfo.textContent.replace(/\.[^/.]+$/, "").replace(/[^\w\-]/g, "_")
+                        : "video";
+                    const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
 
-                const audioFileName = audioFileInfo.textContent
-                    ? audioFileInfo.textContent.replace(/\.[^/.]+$/, "").replace(/[^\w\-]/g, "_")
-                    : "video";
-                const randomDigits = Math.floor(10000000 + Math.random() * 90000000);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `${audioFileName}_${randomDigits}.mp4`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
 
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `${audioFileName}_${randomDigits}.mp4`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
+                    setTimeout(() => URL.revokeObjectURL(url), 100);
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
+                    progressContainer.style.display = 'none';
+                    break;
 
-                setTimeout(() => URL.revokeObjectURL(url), 100);
-
-                downloadBtn.disabled = false;
-                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
-                progressContainer.style.display = 'none';
-            }
-
-            if (type === 'error') {
-                console.error('Ошибка в Worker:', error);
-                alert('Ошибка генерации видео: ' + error);
-                downloadBtn.disabled = false;
-                downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
-                progressContainer.style.display = 'none';
+                case 'error':
+                    console.error('Ошибка в Worker:', error);
+                    alert('Ошибка генерации видео: ' + error);
+                    downloadBtn.disabled = false;
+                    downloadBtn.innerHTML = '<i class="fas fa-download"></i> Скачать видео';
+                    progressContainer.style.display = 'none';
+                    break;
             }
         };
 
-        // Инициируем воркер
-        videoWorker.postMessage({ type: 'ready' });
+        // Ждём, когда воркер сообщит, что он готов к приёму FFmpeg
+        await new Promise(resolve => {
+            const handler = function(e) {
+                if (e.data.type === 'ready') {
+                    videoWorker.removeEventListener('message', handler);
+                    resolve();
+                }
+            };
+            videoWorker.addEventListener('message', handler);
+
+            // Инициируем воркер
+            videoWorker.postMessage({ type: 'ready' });
+        });
+
+        // Теперь безопасно отправляем FFmpeg
+        videoWorker.postMessage({
+            type: 'init',
+            ffmpeg: ffmpeg
+        });
+
+        return videoWorker;
     }
 
     // Переключение табов

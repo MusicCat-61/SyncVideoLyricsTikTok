@@ -12,8 +12,9 @@ self.onmessage = async function(e) {
     if (e.data.type === 'start') {
         try {
             if (!ffmpeg) {
-                throw new Error('FFmpeg не инициализирован');
-            }
+            self.postMessage({ type: 'error', error: 'FFmpeg не инициализирован в воркере' });
+            return;
+        }
 
             const params = e.data.params;
             const { width, height, frameRate } = params;
