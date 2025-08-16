@@ -1,4 +1,3 @@
-// video-worker.js
 let ffmpeg = null;
 
 self.onmessage = async function(e) {
