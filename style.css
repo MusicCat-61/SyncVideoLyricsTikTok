@@ -322,5 +322,6 @@ header {
 #progress-text {
     text-align: center;
     color: #333;
+    font-size: 18px;
     padding: 1px 0;
 }

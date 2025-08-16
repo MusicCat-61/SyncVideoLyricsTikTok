@@ -67,6 +67,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     const progressContainer = document.getElementById('progress-container');
     const progressBar = document.getElementById('progress-bar');
     const progressText = document.getElementById('progress-text');
+    const progressText1 = document.getElementById('progress-text1');
 
     previewText.style.color = textColor.value;
     previewText.style.fontSize = `${textSize.value}px`;
@@ -268,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         progressContainer.style.display = 'block';
         progressBar.style.width = '0%';
         progressText.textContent = '0%';
+        progressText1.textContent = "Не переключайте вкладку. Это ограничение фреймворка."
 
         try {
             console.log('[Main] Начало процесса генерации');
