@@ -114,7 +114,7 @@ async function renderVideo(options) {
     return new Blob([data.buffer], { type: 'video/mp4' });
 
   } catch (error) {
-    console.error('Ошибка рендеринга:', error);
+    console.error('Ошибка рендеринга возникла:', error);
     throw error;
   }
 }
